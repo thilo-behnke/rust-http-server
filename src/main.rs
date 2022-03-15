@@ -1,4 +1,4 @@
-use std::io::{Read, Write};
+use std::io::{Read};
 use std::net::{TcpListener, TcpStream};
 
 const MESSAGE_SIZE: usize = 5;
@@ -8,17 +8,22 @@ fn handle_client(mut stream: TcpStream) -> std::io::Result<()> {
     let mut buf = [0u8; MESSAGE_SIZE];
     loop {
         match stream.read(&mut buf) {
-            Ok(_bytesRead) => {
-                received.extend_from_slice(&buf[.._bytesRead]);
-                let message = std::str::from_utf8(&received).expect("valid ut8");
-                println!("{}", message)
-            },
+            Ok(bytes_read) => {
+                if bytes_read == 0 {
+                    println!("Tcp stream exhausted.");
+                    break;
+                }
+                received.extend_from_slice(&buf[..bytes_read]);
+            }
             Err(e) => {
                 println!("Connection terminated: {:?}", e);
                 break
             }
         };
     }
+    println!("Received message:");
+    let message = std::str::from_utf8(&received).expect("valid ut8");
+    println!("{}", message);
     Ok(())
 }
 
@@ -31,10 +36,10 @@ fn main() -> std::io::Result<()> {
         match stream {
             Ok(_stream) => {
                 println!("Successfully created tcp connection with client {:?}", _stream.peer_addr());
-                handle_client(_stream);
+                handle_client(_stream)?;
             },
             Err(e) => {
-                println!("Failed to establish tcp connection with client");
+                println!("Failed to establish tcp connection with client: {:?}", e);
                 break
             }
         }
