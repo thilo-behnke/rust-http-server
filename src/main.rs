@@ -65,7 +65,11 @@ fn process_http_request(message: &str, mut out_stream: &TcpStream) {
                 out_stream.write(res.as_bytes()).unwrap();
                 out_stream.flush().unwrap();
             },
-            _ => println!("noop")
+            _ => {
+                let res = format!("HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n");
+                out_stream.write(res.as_bytes()).unwrap();
+                out_stream.flush().unwrap();
+            }
         },
         Err(e) => println!("noop")
     }
