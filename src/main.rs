@@ -94,10 +94,6 @@ fn try_parse_http_request(request: &str) -> Result<HttpRequest, &str> {
     };
 }
 
-fn try_parse_get_request(request_lines: Vec<&str>) {
-
-}
-
 fn http_method_from_string(method: &str) -> Result<HttpMethod, &str> {
     return match method {
         "GET" => Ok(HttpMethod::GET),
