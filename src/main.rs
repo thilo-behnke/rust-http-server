@@ -1,3 +1,5 @@
+mod parser;
+
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
@@ -55,6 +57,8 @@ fn handle_client(mut stream: TcpStream) -> std::io::Result<()> {
 }
 
 fn process_http_request(message: &str, mut out_stream: &TcpStream) {
+    let alt_request = parser::parser::parse(message);
+    println!("{}", alt_request.expect("valid request"));
     let request = try_parse_http_request(message);
     match request {
         Ok(req) => match (req.method, req.path.as_str()) {
