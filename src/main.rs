@@ -1,8 +1,10 @@
 mod parser;
+mod types;
 
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
+use crate::types::types::{GeneralRequest, HttpMethod, HttpRequest, HttpVersion};
 
 const MESSAGE_SIZE: usize = 1024;
 
@@ -57,12 +59,10 @@ fn handle_client(mut stream: TcpStream) -> std::io::Result<()> {
 }
 
 fn process_http_request(message: &str, mut out_stream: &TcpStream) {
-    let alt_request = parser::parser::parse(message);
-    println!("{}", alt_request.expect("valid request"));
-    let request = try_parse_http_request(message);
+    let request = parser::parser::parse(message);
     match request {
-        Ok(req) => match (req.method, req.path.as_str()) {
-            (HttpMethod::GET, "/") => {
+        Ok(req) => match (req.general.method, req.general.path) {
+            (HttpMethod::Get, "/") => {
                 println!("Sending response to client");
                 let content = "<div>test<div>";
                 let res = format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{}", content.len(), content);
@@ -77,42 +77,4 @@ fn process_http_request(message: &str, mut out_stream: &TcpStream) {
         },
         Err(e) => println!("noop")
     }
-}
-
-fn try_parse_http_request(request: &str) -> Result<HttpRequest, &str> {
-    let request_lines: Vec<Vec<&str>> = request.split("\r\n").map(|line| line.split(' ').collect()).collect();
-    let request = match request_lines.as_slice() {
-        [] => Err("Empty request"),
-        // [m] => Some(HttpRequest {method: m[0], path: m[1], headers: HashMap::new()}),
-        [m, rest @ ..] => Ok(HttpRequest {method: http_method_from_string(m[0]).expect("Invalid http method"), path: String::from(m[1]), headers: HashMap::new()})
-    };
-    return match request {
-        Ok(req) => {
-            println!("HttpRequest [method={:?}, path={:?}]", req.method, req.path);
-            Ok(req)
-        },
-        Err(e) => {
-            println!("{}", e);
-            Err(e)
-        }
-    };
-}
-
-fn http_method_from_string(method: &str) -> Result<HttpMethod, &str> {
-    return match method {
-        "GET" => Ok(HttpMethod::GET),
-        "POST" => Ok(HttpMethod::POST),
-        _ => Err("Invalid http method")
-    }
-}
-
-struct HttpRequest {
-    method: HttpMethod,
-    path: String,
-    headers: HashMap<String, String>
-}
-
-#[derive(Debug)]
-enum HttpMethod {
-    GET, POST
 }

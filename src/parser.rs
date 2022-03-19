@@ -1,7 +1,7 @@
 pub mod parser {
-    use std::fmt;
     use std::collections::HashMap;
     use std::fmt::Formatter;
+    use crate::types::types::{GeneralRequest, HttpMethod, HttpRequest, HttpVersion};
 
     pub fn parse(request: &str) -> Result<HttpRequest, &str> {
         let request_split: Vec<&str> = request.split("\r\n").collect();
@@ -12,6 +12,10 @@ pub mod parser {
                 return Ok(HttpRequest {general, headers: HashMap::new()})
             }
         }
+    }
+
+    fn parse_headers(headers: Vec<&str>) {
+        // TODO: Implement
     }
 
     fn parse_general(general: &str) -> Result<GeneralRequest, &str> {
@@ -46,51 +50,4 @@ pub mod parser {
         };
     }
 
-    pub struct GeneralRequest<'a> {
-        method: HttpMethod,
-        path: &'a str,
-        version: HttpVersion
-    }
-
-    pub struct HttpRequest<'a> {
-        general: GeneralRequest<'a>,
-        headers: HashMap<&'a str, &'a str>
-    }
-
-    pub enum HttpMethod {
-        Head, Options, Get, Post, Put, Delete
-    }
-
-    pub enum HttpVersion {
-        One, Two, Three
-    }
-
-    impl fmt::Display for HttpMethod {
-        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-            match self {
-                HttpMethod::Get => write!(f, "GET"),
-                HttpMethod::Head => write!(f, "HEAD"),
-                HttpMethod::Options => write!(f, "OPTIONS"),
-                HttpMethod::Post => write!(f, "POST"),
-                HttpMethod::Put => write!(f, "PUT"),
-                HttpMethod::Delete => write!(f, "DELETE")
-            }
-        }
-    }
-
-    impl fmt::Display for HttpVersion {
-        fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-            match self {
-                HttpVersion::One => write!(f, "Http/1.1"),
-                HttpVersion::Two => write!(f, "Http/2"),
-                HttpVersion::Three => write!(f, "Http/3"),
-            }
-        }
-    }
-
-    impl fmt::Display for HttpRequest<'_> {
-        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-            write!(f, "HttpRequest [method=\"{}\", path=\"{}\", version=\"{}\"]", self.general.method, self.general.path, self.general.version)
-        }
-    }
 }
