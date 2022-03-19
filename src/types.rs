@@ -6,20 +6,27 @@ pub mod types {
     pub struct GeneralRequest<'a> {
         pub method: HttpMethod,
         pub path: &'a str,
-        pub version: HttpVersion
+        pub version: HttpVersion,
     }
 
     pub struct HttpRequest<'a> {
         pub general: GeneralRequest<'a>,
-        pub headers: HashMap<&'a str, &'a str>
+        pub headers: HashMap<&'a str, &'a str>,
     }
 
     pub enum HttpMethod {
-        Head, Options, Get, Post, Put, Delete
+        Head,
+        Options,
+        Get,
+        Post,
+        Put,
+        Delete,
     }
 
     pub enum HttpVersion {
-        One, Two, Three
+        One,
+        Two,
+        Three,
     }
 
     impl fmt::Display for HttpMethod {
@@ -30,7 +37,7 @@ pub mod types {
                 HttpMethod::Options => write!(f, "OPTIONS"),
                 HttpMethod::Post => write!(f, "POST"),
                 HttpMethod::Put => write!(f, "PUT"),
-                HttpMethod::Delete => write!(f, "DELETE")
+                HttpMethod::Delete => write!(f, "DELETE"),
             }
         }
     }
@@ -47,7 +54,11 @@ pub mod types {
 
     impl fmt::Display for HttpRequest<'_> {
         fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-            write!(f, "HttpRequest [method=\"{}\", path=\"{}\", version=\"{}\"]", self.general.method, self.general.path, self.general.version)
+            write!(
+                f,
+                "HttpRequest [method=\"{}\", path=\"{}\", version=\"{}\"]",
+                self.general.method, self.general.path, self.general.version
+            )
         }
     }
 }

@@ -1,10 +1,12 @@
 mod parser;
 mod types;
+mod file;
 
+use crate::types::types::{GeneralRequest, HttpMethod, HttpRequest, HttpVersion};
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
-use crate::types::types::{GeneralRequest, HttpMethod, HttpRequest, HttpVersion};
+use file::file::read_file;
 
 const MESSAGE_SIZE: usize = 1024;
 
@@ -16,12 +18,15 @@ fn main() -> std::io::Result<()> {
     for stream in listener.incoming() {
         match stream {
             Ok(_stream) => {
-                println!("Successfully created tcp connection with client {:?}", _stream.peer_addr());
+                println!(
+                    "Successfully created tcp connection with client {:?}",
+                    _stream.peer_addr()
+                );
                 handle_client(_stream)?;
-            },
+            }
             Err(e) => {
                 println!("Failed to establish tcp connection with client: {:?}", e);
-                break
+                break;
             }
         }
     }
@@ -51,7 +56,7 @@ fn handle_client(mut stream: TcpStream) -> std::io::Result<()> {
             }
             Err(e) => {
                 println!("Connection terminated: {:?}", e);
-                break
+                break;
             }
         };
     }
@@ -62,19 +67,41 @@ fn process_http_request(message: &str, mut out_stream: &TcpStream) {
     let request = parser::parser::parse(message);
     match request {
         Ok(req) => match (req.general.method, req.general.path) {
-            (HttpMethod::Get, "/") => {
+            (HttpMethod::Get, path) => {
                 println!("Sending response to client");
-                let content = "<div>test<div>";
-                let res = format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{}", content.len(), content);
-                out_stream.write(res.as_bytes()).unwrap();
-                out_stream.flush().unwrap();
-            },
+                match get_file_content(path) {
+                    Ok(content) => {
+                        let res = format!(
+                            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{}",
+                            content.len(),
+                            content
+                        );
+                        out_stream.write(res.as_bytes()).unwrap();
+                        out_stream.flush().unwrap();
+                    },
+                    Err(e) => {
+                        not_found(out_stream)
+                    }
+                };
+            }
             _ => {
-                let res = format!("HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n");
-                out_stream.write(res.as_bytes()).unwrap();
-                out_stream.flush().unwrap();
+                not_found(out_stream)
             }
         },
-        Err(e) => println!("noop")
+        Err(e) => println!("noop"),
     }
+}
+
+fn not_found(mut out_stream: &TcpStream) {
+    let res = format!("HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n");
+    out_stream.write(res.as_bytes()).unwrap();
+    out_stream.flush().unwrap();
+}
+
+fn get_file_content(path: &str) -> Result<String, String> {
+    let file_path = match path {
+        "/" => "/index.html",
+        p => p
+    };
+    return read_file(file_path);
 }
