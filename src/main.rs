@@ -73,17 +73,16 @@ fn process_http_request(message: &str, mut out_stream: &TcpStream) {
                 println!("Received GET request to path {}", path);
                 match get_file_content(path) {
                     Ok(content) => {
-                        println!("--> ok");
-                        ok(out_stream, content.as_str());
+                        ok(out_stream, content.as_str()).map_or_else(|e| println!("{}", e), |val| val);
                     },
                     Err(e) => {
                         println!("--> not found");
-                        not_found(out_stream)
+                        not_found(out_stream).map_or_else(|e| println!("{}", e), |val| val)
                     }
                 };
             }
             _ => {
-                not_found(out_stream)
+                not_found(out_stream).map_or_else(|e| println!("{}", e), |val| val)
             }
         },
         Err(e) => println!("noop"),
