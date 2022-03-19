@@ -8,7 +8,8 @@ use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use file::file::read_file;
-use crate::response::response::{not_found, ok};
+use crate::parser::parser::parse;
+use crate::response::response::{bad_request, not_found, ok};
 
 const MESSAGE_SIZE: usize = 1024;
 
@@ -66,7 +67,7 @@ fn handle_client(mut stream: TcpStream) -> std::io::Result<()> {
 }
 
 fn process_http_request(message: &str, mut out_stream: &TcpStream) {
-    let request = parser::parser::parse(message);
+    let request = parse(message);
     match request {
         Ok(req) => match (req.general.method, req.general.path) {
             (HttpMethod::Get, path) => {
@@ -85,7 +86,10 @@ fn process_http_request(message: &str, mut out_stream: &TcpStream) {
                 not_found(out_stream).map_or_else(|e| println!("{}", e), |val| val)
             }
         },
-        Err(e) => println!("noop"),
+        Err(e) => {
+            println!("{}", e);
+            bad_request(out_stream).map_or_else(|e| println!("{}", e), |val| val)
+        },
     }
 }
 

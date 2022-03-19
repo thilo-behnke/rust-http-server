@@ -16,6 +16,11 @@ pub mod response {
         return write(res.as_str(), out_stream)
     }
 
+    pub fn bad_request(mut out_stream: &TcpStream) -> Result<(), String> {
+        let res = format!("HTTP/1.1 404 Bad Request\r\nContent-Length: 0\r\n\r\n");
+        return write(res.as_str(), out_stream)
+    }
+
     fn write(content: &str, mut out_stream: &TcpStream) -> Result<(), String> {
         return match out_stream.write(content.as_bytes()) {
             Err(_) => Err(String::from("Failed to write response")),

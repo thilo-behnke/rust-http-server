@@ -8,11 +8,13 @@ pub mod parser {
         match request_split.as_slice() {
             [] => Err("Empty request"),
             [general_line, headers @ ..] => {
-                let general = parse_general(general_line).expect("valid general request");
-                return Ok(HttpRequest {
-                    general,
-                    headers: HashMap::new(),
-                });
+                return match parse_general(general_line) {
+                    Ok(general) => Ok(HttpRequest {
+                        general,
+                        headers: HashMap::new(),
+                    }),
+                    Err(_) => Err("Failed to parse request")
+                }
             }
         }
     }
@@ -45,11 +47,17 @@ pub mod parser {
 
         let general_split: Vec<&str> = general.split(" ").map(|word| word.trim()).collect();
         return match general_split.as_slice() {
-            [method, path] => Ok(GeneralRequest {
-                method: match_method(method).expect("valid method"),
-                path,
-                version: HttpVersion::One,
-            }),
+            [method, path] => {
+                return match match_method(method) {
+                    Ok(m) => Ok(GeneralRequest {
+                        method: m,
+                        path,
+                        version: HttpVersion::One,
+                    }),
+                    Err(e) => Err(e)
+                }
+            },
+            // TODO: Refactor to use error handling for request method (and version)
             [method, path, version] => Ok(GeneralRequest {
                 method: match_method(method).expect("valid method"),
                 path,
