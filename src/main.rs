@@ -1,12 +1,14 @@
 mod parser;
 mod types;
 mod file;
+mod response;
 
 use crate::types::types::{GeneralRequest, HttpMethod, HttpRequest, HttpVersion};
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use file::file::read_file;
+use crate::response::response::{not_found, ok};
 
 const MESSAGE_SIZE: usize = 1024;
 
@@ -46,10 +48,10 @@ fn handle_client(mut stream: TcpStream) -> std::io::Result<()> {
                 }
                 received.extend_from_slice(&buf[..bytes_read]);
                 message = std::str::from_utf8(&received).expect("invalid ut8");
-                println!("Read message: {}", message);
+                // println!("Read message: {}", message);
                 let terminated = message.ends_with("\r\n\r\n");
                 if terminated {
-                    println!("Received terminated message: {}", message);
+                    println!("Received terminated message, try processing as http request...");
                     process_http_request(message, &stream);
                     received = vec![];
                 }
@@ -68,18 +70,14 @@ fn process_http_request(message: &str, mut out_stream: &TcpStream) {
     match request {
         Ok(req) => match (req.general.method, req.general.path) {
             (HttpMethod::Get, path) => {
-                println!("Sending response to client");
+                println!("Received GET request to path {}", path);
                 match get_file_content(path) {
                     Ok(content) => {
-                        let res = format!(
-                            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{}",
-                            content.len(),
-                            content
-                        );
-                        out_stream.write(res.as_bytes()).unwrap();
-                        out_stream.flush().unwrap();
+                        println!("--> ok");
+                        ok(out_stream, content.as_str());
                     },
                     Err(e) => {
+                        println!("--> not found");
                         not_found(out_stream)
                     }
                 };
@@ -90,12 +88,6 @@ fn process_http_request(message: &str, mut out_stream: &TcpStream) {
         },
         Err(e) => println!("noop"),
     }
-}
-
-fn not_found(mut out_stream: &TcpStream) {
-    let res = format!("HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n");
-    out_stream.write(res.as_bytes()).unwrap();
-    out_stream.flush().unwrap();
 }
 
 fn get_file_content(path: &str) -> Result<String, String> {
