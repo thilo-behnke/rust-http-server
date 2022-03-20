@@ -1,18 +1,35 @@
 
 pub mod threads {
+    use std::error::Error;
+    use std::fmt;
+    use std::fmt::Formatter;
     use std::sync::mpsc;
     use std::sync::mpsc::{Receiver, Sender};
     use std::thread;
     use std::thread::JoinHandle;
 
     pub struct ThreadHandler {
-        sender: Sender<String>,
+        sender: Sender<ThreadMessageEvent>,
         pub counter: ThreadCounter
     }
 
     pub struct ThreadCounter {
         pub count: i8,
         pub max_count: i8
+    }
+
+    enum ThreadMessageEvent {
+        OPEN, CLOSE, ERROR(String)
+    }
+
+    impl fmt::Display for ThreadMessageEvent {
+        fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+            match self {
+                ThreadMessageEvent::OPEN => write!(f, "Open thread"),
+                ThreadMessageEvent::CLOSE => write!(f, "Close thread"),
+                ThreadMessageEvent::ERROR(e) => write!(f, "Error when handling thread: {}", e),
+            }
+        }
     }
 
     impl ThreadHandler {
@@ -33,12 +50,18 @@ pub mod threads {
             };
         }
 
-        pub fn spawn<F, T>(&mut self, f: F) -> () where F : FnOnce() -> T, F: Send + 'static, T: Send + 'static {
+        pub fn spawn<F, T, E>(&mut self, f: F) -> () where F : FnOnce() -> Result<T, E>, F: Send + 'static, T: Send + 'static, E: Error, E: Send + 'static {
             let thread_sender = self.sender.clone();
             thread::spawn(move || {
-                thread_sender.send(String::from("thread start"));
-                f();
-                thread_sender.send(String::from("thread end"))
+                thread_sender.send(ThreadMessageEvent::OPEN);
+                match f() {
+                    Ok(_) => {
+                        thread_sender.send(ThreadMessageEvent::CLOSE)
+                    },
+                    Err(e) => {
+                        thread_sender.send(ThreadMessageEvent::ERROR(e.to_string()))
+                    }
+                };
             });
         }
     }

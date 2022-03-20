@@ -30,7 +30,7 @@ fn main() -> std::io::Result<()> {
                     _stream.peer_addr()
                 );
                 thread_handler.spawn(|| {
-                    handle_client(_stream);
+                    handle_client(_stream)
                 });
             }
             Err(e) => {
