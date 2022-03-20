@@ -48,22 +48,22 @@ pub mod threads {
             return thread_handler;
         }
 
-        pub fn init(&'static mut self) {
-            let mut counter: &'static mut ThreadCounter = &mut self.counter;
-            let mut receiver: &'static mut Receiver<ThreadMessageEvent> = &mut self.receiver;
-            thread::spawn(move || {
-                loop {
-                    if let Ok(message) = receiver.recv() {
-                        match message {
-                            ThreadMessageEvent::OPEN => counter.count +=1,
-                            ThreadMessageEvent::CLOSE => counter.count -=1,
-                            ThreadMessageEvent::ERROR(e) => ()
-                        }
-                        println!("{:?}", counter);
-                    }
-                }
-            });
-        }
+        // pub fn init(&'static mut self) {
+        //     let mut counter: &'static mut ThreadCounter = &mut self.counter;
+        //     let mut receiver: &'static mut Receiver<ThreadMessageEvent> = &mut self.receiver;
+        //     thread::spawn(move || {
+        //         loop {
+        //             if let Ok(message) = receiver.recv() {
+        //                 match message {
+        //                     ThreadMessageEvent::OPEN => counter.count +=1,
+        //                     ThreadMessageEvent::CLOSE => counter.count -=1,
+        //                     ThreadMessageEvent::ERROR(e) => ()
+        //                 }
+        //                 println!("{:?}", counter);
+        //             }
+        //         }
+        //     });
+        // }
 
         pub fn spawn<F, T, E>(&mut self, f: F) -> () where F : FnOnce() -> Result<T, E>, F: Send + 'static, T: Send + 'static, E: Error, E: Send + 'static {
             let thread_sender = self.sender.clone();
@@ -78,6 +78,11 @@ pub mod threads {
                     }
                 };
             });
+            for message in self.receiver.recv() {
+                match message {
+                    ThreadMessageEvent::
+                }
+            }
         }
     }
 }
