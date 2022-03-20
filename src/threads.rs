@@ -10,7 +10,7 @@ pub mod threads {
     #[derive(Debug)]
     pub struct ThreadHandler {
         sender: Sender<ThreadMessageEvent>,
-        pub counter: ThreadCounter
+        counter: ThreadCounter
     }
 
     #[derive(Debug)]
@@ -34,7 +34,7 @@ pub mod threads {
     }
 
     impl ThreadHandler {
-        pub fn create() -> &'static ThreadHandler {
+        pub fn create() -> ThreadHandler {
             let (tx, rx) = mpsc::channel();
             let mut thread_handler = ThreadHandler {
                 sender: tx,
@@ -51,11 +51,11 @@ pub mod threads {
                             ThreadMessageEvent::CLOSE => thread_handler.counter.count -=1,
                             ThreadMessageEvent::ERROR(e) => ()
                         }
-                        println!("{:?}", thread_handler);
+                        println!("{:?}", thread_handler.counter);
                     }
                 }
             });
-            return &thread_handler;
+            return thread_handler;
         }
 
         pub fn spawn<F, T, E>(&mut self, f: F) -> () where F : FnOnce() -> Result<T, E>, F: Send + 'static, T: Send + 'static, E: Error, E: Send + 'static {
