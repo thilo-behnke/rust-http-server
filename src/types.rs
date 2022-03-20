@@ -11,7 +11,7 @@ pub mod types {
 
     pub struct HttpRequest<'a> {
         pub general: GeneralRequest<'a>,
-        pub headers: HashMap<&'a str, &'a str>,
+        pub headers: HashMap<String, String>,
     }
 
     pub enum HttpMethod {
