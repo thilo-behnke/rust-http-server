@@ -4,11 +4,12 @@ pub mod threads {
     use std::fmt;
     use std::fmt::Formatter;
     use std::sync::mpsc;
-    use std::sync::mpsc::{Sender};
+    use std::sync::mpsc::{Receiver, Sender};
     use std::thread;
 
     #[derive(Debug)]
     pub struct ThreadHandler {
+        receiver: Receiver<ThreadMessageEvent>,
         sender: Sender<ThreadMessageEvent>,
         counter: ThreadCounter
     }
@@ -36,26 +37,32 @@ pub mod threads {
     impl ThreadHandler {
         pub fn create() -> ThreadHandler {
             let (tx, rx) = mpsc::channel();
-            let mut thread_handler = ThreadHandler {
+            let thread_handler = ThreadHandler {
+                receiver: rx,
                 sender: tx,
                 counter: ThreadCounter {
                     count: 0,
                     max_count: 4
                 }
             };
+            return thread_handler;
+        }
+
+        pub fn init(&'static mut self) {
+            let mut counter: &'static mut ThreadCounter = &mut self.counter;
+            let mut receiver: &'static mut Receiver<ThreadMessageEvent> = &mut self.receiver;
             thread::spawn(move || {
                 loop {
-                    if let Ok(message) = rx.recv() {
+                    if let Ok(message) = receiver.recv() {
                         match message {
-                            ThreadMessageEvent::OPEN => thread_handler.counter.count +=1,
-                            ThreadMessageEvent::CLOSE => thread_handler.counter.count -=1,
+                            ThreadMessageEvent::OPEN => counter.count +=1,
+                            ThreadMessageEvent::CLOSE => counter.count -=1,
                             ThreadMessageEvent::ERROR(e) => ()
                         }
-                        println!("{:?}", thread_handler.counter);
+                        println!("{:?}", counter);
                     }
                 }
             });
-            return thread_handler;
         }
 
         pub fn spawn<F, T, E>(&mut self, f: F) -> () where F : FnOnce() -> Result<T, E>, F: Send + 'static, T: Send + 'static, E: Error, E: Send + 'static {
