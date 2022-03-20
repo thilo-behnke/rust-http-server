@@ -20,7 +20,7 @@ fn main() -> std::io::Result<()> {
     println!("Starting tcp bind to 8080.");
     let listener = TcpListener::bind("127.0.0.1:8080").expect("Unable to bind to port.");
     println!("Tcp bind established, now listening.");
-    let mut thread_handler: ThreadHandler = threads::threads::ThreadHandler::create();
+    let mut thread_handler: &ThreadHandler = ThreadHandler::create();
 
     for stream in listener.incoming() {
         match stream {

@@ -7,11 +7,13 @@ pub mod threads {
     use std::sync::mpsc::{Sender};
     use std::thread;
 
+    #[derive(Debug)]
     pub struct ThreadHandler {
         sender: Sender<ThreadMessageEvent>,
         pub counter: ThreadCounter
     }
 
+    #[derive(Debug)]
     pub struct ThreadCounter {
         pub count: i8,
         pub max_count: i8
@@ -32,21 +34,28 @@ pub mod threads {
     }
 
     impl ThreadHandler {
-        pub fn create() -> ThreadHandler {
+        pub fn create() -> &'static ThreadHandler {
             let (tx, rx) = mpsc::channel();
-            thread::spawn(move || {
-                loop {
-                    let received = rx.recv().unwrap();
-                    println!("{}", received);
-                }
-            });
-            return ThreadHandler {
+            let mut thread_handler = ThreadHandler {
                 sender: tx,
                 counter: ThreadCounter {
                     count: 0,
                     max_count: 4
                 }
             };
+            thread::spawn(move || {
+                loop {
+                    if let Ok(message) = rx.recv() {
+                        match message {
+                            ThreadMessageEvent::OPEN => thread_handler.counter.count +=1,
+                            ThreadMessageEvent::CLOSE => thread_handler.counter.count -=1,
+                            ThreadMessageEvent::ERROR(e) => ()
+                        }
+                        println!("{:?}", thread_handler);
+                    }
+                }
+            });
+            return &thread_handler;
         }
 
         pub fn spawn<F, T, E>(&mut self, f: F) -> () where F : FnOnce() -> Result<T, E>, F: Send + 'static, T: Send + 'static, E: Error, E: Send + 'static {
