@@ -7,6 +7,7 @@ use crate::types::types::{GeneralRequest, HttpMethod, HttpRequest, HttpVersion};
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
+use std::thread;
 use file::file::read_file;
 use crate::parser::parser::parse;
 use crate::response::response::{bad_request, not_found, ok};
@@ -25,7 +26,12 @@ fn main() -> std::io::Result<()> {
                     "Successfully created tcp connection with client {:?}",
                     _stream.peer_addr()
                 );
-                handle_client(_stream)?;
+                thread::spawn(|| {
+                    let client = _stream.peer_addr();
+                    println!("[Thread] Created thread for handling client {:?}", client);
+                    handle_client(_stream);
+                    println!("[Thread] Terminating thread for handling client {:?}", client);
+                });
             }
             Err(e) => {
                 println!("Failed to establish tcp connection with client: {:?}", e);
