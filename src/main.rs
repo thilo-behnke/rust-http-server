@@ -2,6 +2,7 @@ mod parser;
 mod types;
 mod file;
 mod response;
+mod threads;
 
 use crate::types::types::{GeneralRequest, HttpMethod, HttpRequest, HttpVersion};
 use std::collections::HashMap;
@@ -11,6 +12,7 @@ use std::thread;
 use file::file::read_file;
 use crate::parser::parser::parse;
 use crate::response::response::{bad_request, not_found, ok};
+use crate::threads::threads::ThreadHandler;
 
 const MESSAGE_SIZE: usize = 1024;
 
@@ -18,6 +20,7 @@ fn main() -> std::io::Result<()> {
     println!("Starting tcp bind to 8080.");
     let listener = TcpListener::bind("127.0.0.1:8080").expect("Unable to bind to port.");
     println!("Tcp bind established, now listening.");
+    let mut thread_handler: ThreadHandler = threads::threads::ThreadHandler::create();
 
     for stream in listener.incoming() {
         match stream {
@@ -26,11 +29,8 @@ fn main() -> std::io::Result<()> {
                     "Successfully created tcp connection with client {:?}",
                     _stream.peer_addr()
                 );
-                thread::spawn(|| {
-                    let client = _stream.peer_addr();
-                    println!("[Thread] Created thread for handling client {:?}", client);
+                thread_handler.spawn(|| {
                     handle_client(_stream);
-                    println!("[Thread] Terminating thread for handling client {:?}", client);
                 });
             }
             Err(e) => {
