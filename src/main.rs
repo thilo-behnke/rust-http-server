@@ -77,16 +77,7 @@ fn process_http_request(message: &str, mut out_stream: &TcpStream) {
     match request {
         Ok(req) => match (req.general.method, req.general.path) {
             (HttpMethod::Get, path) => {
-                println!("Received GET request to path {}", path);
-                match get_file_content(path) {
-                    Ok(content) => {
-                        ok(out_stream, content.as_str()).map_or_else(|e| println!("{}", e), |val| val);
-                    },
-                    Err(e) => {
-                        println!("--> not found");
-                        not_found(out_stream).map_or_else(|e| println!("{}", e), |val| val)
-                    }
-                };
+                process_get_request(out_stream, path);
             }
             _ => {
                 not_found(out_stream).map_or_else(|e| println!("{}", e), |val| val)
@@ -97,6 +88,19 @@ fn process_http_request(message: &str, mut out_stream: &TcpStream) {
             bad_request(out_stream).map_or_else(|e| println!("{}", e), |val| val)
         },
     }
+}
+
+fn process_get_request(out_stream: &TcpStream, path: &str) {
+    println!("Received GET request to path {}", path);
+    match get_file_content(path) {
+        Ok(content) => {
+            ok(out_stream, content.as_str()).map_or_else(|e| println!("{}", e), |val| val);
+        },
+        Err(e) => {
+            println!("--> not found");
+            not_found(out_stream).map_or_else(|e| println!("{}", e), |val| val)
+        }
+    };
 }
 
 fn get_file_content(path: &str) -> Result<String, String> {
