@@ -1,7 +1,6 @@
 pub mod parser {
     use crate::types::types::{GeneralRequest, HttpMethod, HttpRequest, HttpVersion};
     use std::collections::HashMap;
-    use std::fmt::Formatter;
 
     pub fn parse(request: &str) -> Result<HttpRequest, &str> {
         let request_split: Vec<&str> = request.split("\r\n").collect();
@@ -11,7 +10,7 @@ pub mod parser {
                 return match parse_general(general_line) {
                     Ok(general) => Ok(HttpRequest {
                         general,
-                        headers: HashMap::new(),
+                        headers: parse_headers(headers),
                     }),
                     Err(_) => Err("Failed to parse request")
                 }
@@ -19,8 +18,8 @@ pub mod parser {
         }
     }
 
-    fn parse_headers(headers: Vec<&str>) {
-        // TODO: Implement
+    fn parse_headers(_headers: &[&str]) -> HashMap<String, String> {
+        HashMap::new()
     }
 
     fn parse_general(general: &str) -> Result<GeneralRequest, &str> {

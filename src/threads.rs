@@ -4,9 +4,8 @@ pub mod threads {
     use std::fmt;
     use std::fmt::Formatter;
     use std::sync::mpsc;
-    use std::sync::mpsc::{Receiver, Sender};
+    use std::sync::mpsc::{Sender};
     use std::thread;
-    use std::thread::JoinHandle;
 
     pub struct ThreadHandler {
         sender: Sender<ThreadMessageEvent>,
@@ -53,13 +52,13 @@ pub mod threads {
         pub fn spawn<F, T, E>(&mut self, f: F) -> () where F : FnOnce() -> Result<T, E>, F: Send + 'static, T: Send + 'static, E: Error, E: Send + 'static {
             let thread_sender = self.sender.clone();
             thread::spawn(move || {
-                thread_sender.send(ThreadMessageEvent::OPEN);
+                thread_sender.send(ThreadMessageEvent::OPEN).expect("unable to send message open");
                 match f() {
                     Ok(_) => {
-                        thread_sender.send(ThreadMessageEvent::CLOSE)
+                        thread_sender.send(ThreadMessageEvent::CLOSE).expect("unable to send message close");
                     },
                     Err(e) => {
-                        thread_sender.send(ThreadMessageEvent::ERROR(e.to_string()))
+                        thread_sender.send(ThreadMessageEvent::ERROR(e.to_string())).expect("unable to send message error");
                     }
                 };
             });

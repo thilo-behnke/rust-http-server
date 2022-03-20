@@ -2,7 +2,7 @@ pub mod response {
     use std::io::Write;
     use std::net::TcpStream;
 
-    pub fn ok(mut out_stream: &TcpStream, content: &str) -> Result<(), String> {
+    pub fn ok(out_stream: &TcpStream, content: &str) -> Result<(), String> {
         let res = format!(
             "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{}",
             content.len(),
@@ -11,12 +11,12 @@ pub mod response {
         return write(res.as_str(), out_stream);
     }
 
-    pub fn not_found(mut out_stream: &TcpStream) -> Result<(), String> {
+    pub fn not_found(out_stream: &TcpStream) -> Result<(), String> {
         let res = format!("HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n");
         return write(res.as_str(), out_stream)
     }
 
-    pub fn bad_request(mut out_stream: &TcpStream) -> Result<(), String> {
+    pub fn bad_request(out_stream: &TcpStream) -> Result<(), String> {
         let res = format!("HTTP/1.1 404 Bad Request\r\nContent-Length: 0\r\n\r\n");
         return write(res.as_str(), out_stream)
     }
@@ -25,7 +25,7 @@ pub mod response {
         return match out_stream.write(content.as_bytes()) {
             Err(_) => Err(String::from("Failed to write response")),
             Ok(_) => match out_stream.flush() {
-                Err(e) => Err(String::from("Failed to write response")),
+                Err(e) => Err(String::from("Failed to write response: ") + e.to_string().as_str()),
                 Ok(()) => Ok(())
             }
         };
