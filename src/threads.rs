@@ -1,48 +1,45 @@
 
 pub mod threads {
+    use std::sync::mpsc;
+    use std::sync::mpsc::{Receiver, Sender};
     use std::thread;
     use std::thread::JoinHandle;
 
     pub struct ThreadHandler {
+        sender: Sender<String>,
         pub counter: ThreadCounter
     }
 
     pub struct ThreadCounter {
         pub count: i8,
-        pub max_count: i8,
-        active_handles: Vec<JoinHandle<()>>
+        pub max_count: i8
     }
 
     impl ThreadHandler {
         pub fn create() -> ThreadHandler {
+            let (tx, rx) = mpsc::channel();
+            thread::spawn(move || {
+                loop {
+                    let received = rx.recv().unwrap();
+                    println!("{}", received);
+                }
+            });
             return ThreadHandler {
+                sender: tx,
                 counter: ThreadCounter {
                     count: 0,
-                    max_count: 4,
-                    active_handles: vec![]
+                    max_count: 4
                 }
             };
         }
 
-        pub fn init(&mut self) {
-            thread::spawn(|| {
-                loop {
-                    let handles = self.counter.active_handles;
-                    println!("{:?}", handles);
-                }
-            });
-        }
-
         pub fn spawn<F, T>(&mut self, f: F) -> () where F : FnOnce() -> T, F: Send + 'static, T: Send + 'static {
-            // let counter = &mut self.counter;
-            let handle = thread::spawn(|| {
-                // counter.count += 1;
-                // println!("ThreadHandler spawned thread, currently open threads: {}", counter.count.to_string());
+            let thread_sender = self.sender.clone();
+            thread::spawn(move || {
+                thread_sender.send(String::from("thread start"));
                 f();
-                // counter.count -= 1;
-                // println!("ThreadHandler terminates thread, currently open threads: {}", counter.count.to_string());
+                thread_sender.send(String::from("thread end"))
             });
-            self.counter.active_handles.push(handle);
         }
     }
 }
