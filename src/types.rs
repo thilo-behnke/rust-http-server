@@ -14,6 +14,7 @@ pub mod types {
         pub headers: HashMap<String, String>,
     }
 
+    #[derive(Debug)]
     pub enum HttpMethod {
         Head,
         Options,

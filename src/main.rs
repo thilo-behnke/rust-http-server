@@ -3,6 +3,7 @@ use std::io::Read;
 use std::net::{TcpListener, TcpStream};
 
 use file::file::read_file;
+use crate::endpoint::endpoint::EndpointHandler;
 
 use crate::parser::parser::parse;
 use crate::response::response::{bad_request, not_found, ok};
@@ -14,16 +15,17 @@ mod types;
 mod file;
 mod response;
 mod threads;
+mod endpoint;
 
 const MESSAGE_SIZE: usize = 1024;
-
-static STATIC_ENDPOINTS: Vec<(HttpMethod, String, String)> = vec!((HttpMethod::Get, String::from("/"), String::from("/index.html")));
 
 fn main() -> std::io::Result<()> {
     println!("Starting tcp bind to 8080.");
     let listener = TcpListener::bind("127.0.0.1:8080").expect("Unable to bind to port.");
     println!("Tcp bind established, now listening.");
     let mut thread_handler = ThreadHandler::create();
+    let mut endpoint_handler = EndpointHandler::create();
+    endpoint_handler.register_assets(String::from("static"), String::from("static"));
 
     for stream in listener.incoming() {
         match stream {
@@ -97,7 +99,6 @@ fn process_http_request(message: &str, out_stream: &TcpStream) {
 }
 
 fn process_get_request(out_stream: &TcpStream, path: &str) {
-    let matching_endpoint = STATIC_ENDPOINTS.iter().find(|(method, path, mapping)| method == HttpMethod::Get && path == path);
     println!("Received GET request to path {}", path);
     match get_file_content(path) {
         Ok(content) => {
