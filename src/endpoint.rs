@@ -14,8 +14,8 @@ pub mod endpoint {
 
         pub fn to_provider(&self) -> EndpointProvider {
             return EndpointProvider {
-                endpoints: self.endpoints.to_vec() // performance for many threads?
-            }
+                endpoints: self.endpoints.to_vec(), // performance for many threads?
+            };
         }
 
         pub fn register_assets(&mut self, path: String, mapping: String) {
@@ -62,18 +62,19 @@ pub mod endpoint {
         }
     }
 
-
     pub struct EndpointProvider {
         endpoints: Vec<Endpoint>,
     }
 
     impl EndpointProvider {
         pub fn match_endpoint(&self, path: String, method: HttpMethod) -> Option<&Endpoint> {
-            println!("Called to resolve endpoint for path {} with method {:?}", path, method);
-            return self
-                .endpoints
-                .iter()
-                .find(|e| (e.path == path || e.aliases.contains(&path)) && e.methods.contains(&method));
+            println!(
+                "Called to resolve endpoint for path {} with method {:?}",
+                path, method
+            );
+            return self.endpoints.iter().find(|e| {
+                (e.path == path || e.aliases.contains(&path)) && e.methods.contains(&method)
+            });
         }
     }
 
