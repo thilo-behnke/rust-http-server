@@ -12,6 +12,12 @@ pub mod endpoint {
             return EndpointHandler { endpoints: vec![] };
         }
 
+        pub fn to_provider(&self) -> EndpointProvider {
+            return EndpointProvider {
+                endpoints: self.endpoints.to_vec() // performance for many threads?
+            }
+        }
+
         pub fn register_assets(&mut self, path: String, mapping: String) {
             let path_str = path.as_str();
             for asset_path_res in fs::read_dir(path_str).unwrap() {
@@ -54,19 +60,27 @@ pub mod endpoint {
                 }
             }
         }
+    }
 
+
+    pub struct EndpointProvider {
+        endpoints: Vec<Endpoint>,
+    }
+
+    impl EndpointProvider {
         pub fn match_endpoint(&self, path: String, method: HttpMethod) -> Option<&Endpoint> {
+            println!("Called to resolve endpoint for path {} with method {:?}", path, method);
             return self
                 .endpoints
                 .iter()
-                .find(|e| e.path == path && e.methods.contains(&method));
+                .find(|e| (e.path == path || e.aliases.contains(&path)) && e.methods.contains(&method));
         }
     }
 
-    #[derive(Debug)]
+    #[derive(Debug, Clone)]
     pub struct Endpoint {
-        endpoint_type: EndpointType,
-        path: String,
+        pub path: String,
+        pub endpoint_type: EndpointType,
         aliases: Vec<String>,
         methods: Vec<HttpMethod>,
     }
@@ -81,7 +95,7 @@ pub mod endpoint {
             };
         }
     }
-    #[derive(Debug)]
+    #[derive(Debug, Clone)]
     pub enum EndpointType {
         Assets,
         Resource,

@@ -7,7 +7,7 @@ pub mod file {
             true => &file_path[1..],
             false => file_path,
         };
-        let path = path::Path::new("static").join(path::Path::new(corrected_file_path));
+        let path = path::Path::new(corrected_file_path);
         if !path.exists() {
             let error = String::from("File does not exist: ") + path.to_str().expect("");
             println!("{}", error);

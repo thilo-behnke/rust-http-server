@@ -2,36 +2,34 @@ use std::collections::HashMap;
 use std::io::Read;
 use std::net::{TcpListener, TcpStream};
 
+use crate::endpoint::endpoint::{EndpointHandler, EndpointProvider};
 use file::file::read_file;
-use crate::endpoint::endpoint::EndpointHandler;
 
 use crate::parser::parser::parse;
 use crate::response::response::{bad_request, not_found, ok};
 use crate::threads::threads::ThreadHandler;
 use crate::types::types::HttpMethod;
 
-mod parser;
-mod types;
+mod endpoint;
 mod file;
+mod parser;
 mod response;
 mod threads;
-mod endpoint;
+mod types;
 
 const MESSAGE_SIZE: usize = 1024;
-
-struct WebServer {
-    tcp_listener: TcpListener,
-    thread_handler: ThreadHandler,
-    endpoint_handler: EndpointHandler
-}
 
 fn main() -> std::io::Result<()> {
     WebServer::create().run()
 }
 
+struct WebServer {
+    tcp_listener: TcpListener,
+    thread_handler: ThreadHandler,
+    endpoint_handler: EndpointHandler,
+}
 
 impl WebServer {
-
     fn create() -> WebServer {
         println!("Starting tcp bind to 8080.");
         let tcp_listener = TcpListener::bind("127.0.0.1:8080").expect("Unable to bind to port.");
@@ -41,12 +39,13 @@ impl WebServer {
         return WebServer {
             tcp_listener,
             thread_handler,
-            endpoint_handler
-        }
+            endpoint_handler,
+        };
     }
 
     fn run(&mut self) -> std::io::Result<()> {
-        self.endpoint_handler.register_assets(String::from("static"), String::from("static"));
+        self.endpoint_handler
+            .register_assets(String::from("static"), String::from("static"));
 
         for stream in self.tcp_listener.incoming() {
             match stream {
@@ -55,11 +54,13 @@ impl WebServer {
                         "Successfully created tcp connection with client {:?}",
                         _stream.peer_addr()
                     );
+                    let endpoint_provider = self.endpoint_handler.to_provider();
                     match self.thread_handler.spawn(|| {
-                        self.handle_client(_stream)
+                        let web_server_thread_handler = WebServerThreadHandler { endpoint_handler: endpoint_provider };
+                        web_server_thread_handler.handle_client(_stream)
                     }) {
                         Ok(()) => (),
-                        Err(e) => println!("{}", e)
+                        Err(e) => println!("{}", e),
                     };
                 }
                 Err(e) => {
@@ -70,7 +71,13 @@ impl WebServer {
         }
         Ok(())
     }
+}
 
+struct WebServerThreadHandler {
+    endpoint_handler: EndpointProvider,
+}
+
+impl WebServerThreadHandler {
     fn handle_client(&self, mut stream: TcpStream) -> std::io::Result<()> {
         let mut received: Vec<u8> = vec![];
         let mut buf = [0u8; MESSAGE_SIZE];
@@ -108,14 +115,12 @@ impl WebServer {
                 (HttpMethod::Get, path) => {
                     self.process_get_request(out_stream, path);
                 }
-                _ => {
-                    not_found(out_stream).map_or_else(|e| println!("{}", e), |val| val)
-                }
+                _ => not_found(out_stream).map_or_else(|e| println!("{}", e), |val| val),
             },
             Err(e) => {
                 println!("{}", e);
                 bad_request(out_stream).map_or_else(|e| println!("{}", e), |val| val)
-            },
+            }
         }
     }
 
@@ -124,7 +129,7 @@ impl WebServer {
         match self.get_file_content(path) {
             Ok(content) => {
                 ok(out_stream, content.as_str()).map_or_else(|e| println!("{}", e), |val| val);
-            },
+            }
             Err(_) => {
                 println!("--> not found");
                 not_found(out_stream).map_or_else(|e| println!("{}", e), |val| val)
@@ -133,11 +138,16 @@ impl WebServer {
     }
 
     fn get_file_content(&self, path: &str) -> Result<String, String> {
-        let file_path = match path {
-            "/" => "/index.html",
-            p => p
-        };
-        return read_file(file_path);
+        let endpoint = self.endpoint_handler.match_endpoint(String::from(path), HttpMethod::Get);
+        match endpoint {
+            Some(e) => {
+                return read_file(e.path.as_str());
+            },
+            None => {
+                let mut error = String::from("Unable to get file content for: ");
+                error.push_str(path);
+                Err(error)
+            }
+        }
     }
 }
-
