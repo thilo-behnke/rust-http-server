@@ -40,6 +40,10 @@ pub mod endpoint {
                 }
             }
         }
+
+        pub fn match_endpoint(&self, path: String, method: HttpMethod) -> Option<&Endpoint> {
+            return self.endpoints.iter().find(|e| e.path == path && e.methods.contains(&method));
+        }
     }
 
     #[derive(Debug)]
