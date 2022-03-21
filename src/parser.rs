@@ -12,7 +12,7 @@ pub mod parser {
                         general,
                         headers: parse_headers(headers),
                     }),
-                    Err(_) => Err("Failed to parse request")
+                    Err(_) => Err("Failed to parse request"),
                 }
             }
         }
@@ -53,9 +53,9 @@ pub mod parser {
                         path,
                         version: HttpVersion::One,
                     }),
-                    Err(e) => Err(e)
+                    Err(e) => Err(e),
                 }
-            },
+            }
             // TODO: Refactor to use error handling for request method (and version)
             [method, path, version] => Ok(GeneralRequest {
                 method: match_method(method).expect("valid method"),

@@ -1,4 +1,3 @@
-
 pub mod file {
     use std::fs;
     use std::path;
@@ -6,11 +5,9 @@ pub mod file {
     pub fn read_file(file_path: &str) -> Result<String, String> {
         let corrected_file_path = match file_path.starts_with("/") {
             true => &file_path[1..],
-            false => file_path
+            false => file_path,
         };
-        let path = path::Path::new("static").join(
-            path::Path::new(corrected_file_path)
-        );
+        let path = path::Path::new("static").join(path::Path::new(corrected_file_path));
         if !path.exists() {
             let error = String::from("File does not exist: ") + path.to_str().expect("");
             println!("{}", error);
