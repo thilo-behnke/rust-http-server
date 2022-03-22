@@ -20,7 +20,11 @@ pub mod endpoint {
             };
         }
 
-        pub fn register_assets(&mut self, location: String, mapping: String) {
+        pub fn register_assets(&mut self, location: String, mapping: String) -> Result<(), String> {
+            if let Some(endpoint) = self.endpoints.iter().find(|e| e.path.starts_with(&mapping)) {
+                let error = format!("Tried to register asset endpoint at location {}, however another endpoint is already registered within: {:?}", location, endpoint);
+                return Err(error)
+            }
             let absolute_path = self.map_to_absolute(&location).into_os_string().into_string().unwrap();
             let mapping_corrected = match mapping.starts_with("/") {
                 true => mapping,
@@ -35,7 +39,8 @@ pub mod endpoint {
                 }),
             };
             println!("Registered endpoint: {:?}", endpoint);
-            self.endpoints.push(endpoint)
+            self.endpoints.push(endpoint);
+            return Ok(())
         }
 
         pub fn register_static(&mut self, location: String, mapping: String) {

@@ -38,6 +38,8 @@ pub mod web_server {
             self.endpoint_handler
                 .register_static(String::from("files/dummy-website"), String::from("website"));
             self.endpoint_handler.register_assets(String::from("files/storage/"), String::from("storage"));
+            // TODO: No error?
+            self.endpoint_handler.register_assets(String::from("files/storage"), String::from("website")).map_or_else(|e| println!("{}", e), |val| val);
 
             for stream in self.tcp_listener.incoming() {
                 match stream {
