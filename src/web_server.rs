@@ -2,14 +2,14 @@ pub mod web_server {
     use crate::endpoint::endpoint::{EndpointHandler, EndpointProvider, EndpointType};
     use crate::file::file::read_file;
     use crate::parser::parser::parse;
-    use crate::path::path::join_mapped;
+    use crate::path::path::{join_mapped, remap};
     use crate::response::response::{bad_request, not_found, ok};
     use crate::threads::threads::ThreadHandler;
     use crate::types::types::HttpMethod;
     use std::any::Any;
     use std::io::Read;
     use std::net::{TcpListener, TcpStream};
-    use std::path::{MAIN_SEPARATOR, Path};
+    use std::path::{Path, MAIN_SEPARATOR};
 
     const MESSAGE_SIZE: usize = 1024;
 
@@ -36,7 +36,8 @@ pub mod web_server {
 
         pub fn run(&mut self) -> std::io::Result<()> {
             self.endpoint_handler
-                .register_assets(String::from("files/dummy-website"), String::from("website"));
+                .register_static(String::from("files/dummy-website"), String::from("website"));
+            self.endpoint_handler.register_assets(String::from("files/storage/"), String::from("storage"));
 
             for stream in self.tcp_listener.incoming() {
                 match stream {
@@ -122,7 +123,7 @@ pub mod web_server {
         fn process_get_request(&self, out_stream: &TcpStream, path: &str) {
             let corrected_path = match path.len() > 1 && path.ends_with("/") {
                 true => &path[..path.len() - 1],
-                false => &path
+                false => &path,
             };
             println!("Received GET request to path {}", corrected_path);
             match self.get_file_content(corrected_path) {
@@ -144,9 +145,16 @@ pub mod web_server {
                 Some(e) => {
                     let endpoint_type = &e.endpoint_type;
                     match endpoint_type {
-                        EndpointType::Asset(asset_endpoint) => {
-                            let asset_path = &asset_endpoint.asset_path;
+                        EndpointType::StaticAsset(static_endpoint) => {
+                            let asset_path = &static_endpoint.asset_path;
                             return read_file(asset_path);
+                        }
+                        EndpointType::Assets(asset_endpoint) => {
+                            let asset_path = remap(Path::new(path), Path::new(&e.path), Path::new(&asset_endpoint.asset_base))
+                                .into_os_string()
+                                .into_string()
+                                .unwrap();
+                            return read_file(&asset_path);
                         }
                         _ => panic!("Unable to handle endpoint type: {:?}", e.endpoint_type),
                     }

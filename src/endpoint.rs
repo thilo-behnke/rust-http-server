@@ -3,7 +3,7 @@ pub mod endpoint {
     use crate::types::types::HttpMethod;
     use std::fs;
     use std::ops::Add;
-    use std::path::Path;
+    use std::path::{Path, PathBuf};
 
     pub struct EndpointHandler {
         endpoints: Vec<Endpoint>,
@@ -21,18 +21,25 @@ pub mod endpoint {
         }
 
         pub fn register_assets(&mut self, location: String, mapping: String) {
-            let path = Path::new(location.as_str());
-            let absolute_path = match path.is_absolute() {
-                true => path.to_path_buf(),
-                false => {
-                    let cleaned_location = match location.starts_with("./") {
-                        true => &location[2..],
-                        false => &location,
-                    };
-                    let current_dir = std::env::current_dir().unwrap();
-                    Path::new(&current_dir).join(cleaned_location)
-                }
+            let absolute_path = self.map_to_absolute(&location).into_os_string().into_string().unwrap();
+            let mapping_corrected = match mapping.starts_with("/") {
+                true => mapping,
+                false => ["/", &mapping].join("")
             };
+            let endpoint = Endpoint {
+                path: mapping_corrected,
+                aliases: vec![],
+                methods: vec![HttpMethod::Get],
+                endpoint_type: EndpointType::Assets(AssetEndpoint {
+                    asset_base: absolute_path,
+                }),
+            };
+            println!("Registered endpoint: {:?}", endpoint);
+            self.endpoints.push(endpoint)
+        }
+
+        pub fn register_static(&mut self, location: String, mapping: String) {
+            let absolute_path = self.map_to_absolute(&location);
             for local_asset_path_res in fs::read_dir(absolute_path).unwrap() {
                 match local_asset_path_res {
                     Ok(local_asset_path) => {
@@ -89,6 +96,21 @@ pub mod endpoint {
                 }
             }
         }
+
+        fn map_to_absolute(&self, location: &String) -> PathBuf {
+            let path = Path::new(location);
+            match path.is_absolute() {
+                true => path.to_path_buf(),
+                false => {
+                    let cleaned_location = match location.starts_with("./") {
+                        true => &location[2..],
+                        false => &location,
+                    };
+                    let current_dir = std::env::current_dir().unwrap();
+                    Path::new(&current_dir).join(cleaned_location)
+                }
+            }
+        }
     }
 
     pub struct EndpointProvider {
@@ -101,8 +123,13 @@ pub mod endpoint {
                 "Called to resolve endpoint for path {} with method {:?}",
                 path, method
             );
-            return self.endpoints.iter().find(|e| {
-                (e.path == path || e.aliases.contains(&path)) && e.methods.contains(&method)
+            return self.endpoints.iter().find(|e| match &e.endpoint_type {
+                EndpointType::Assets(_) => {
+                    return path.starts_with(&e.path);
+                },
+                _ => {
+                    (e.path == path || e.aliases.contains(&path)) && e.methods.contains(&method)
+                }
             });
         }
     }
@@ -116,14 +143,19 @@ pub mod endpoint {
     }
 
     #[derive(Debug, Clone)]
-    pub struct AssetEndpoint {
+    pub struct StaticEndpoint {
         pub asset_path: String,
+    }
+
+    #[derive(Debug, Clone)]
+    pub struct AssetEndpoint {
+        pub asset_base: String,
     }
 
     impl Endpoint {
         pub fn asset(path: String, asset_base_path: String, aliases: Vec<String>) -> Endpoint {
             return Endpoint {
-                endpoint_type: EndpointType::Asset(AssetEndpoint {
+                endpoint_type: EndpointType::StaticAsset(StaticEndpoint {
                     asset_path: asset_base_path,
                 }),
                 path,
@@ -132,9 +164,11 @@ pub mod endpoint {
             };
         }
     }
+
     #[derive(Debug, Clone)]
     pub enum EndpointType {
-        Asset(AssetEndpoint),
+        StaticAsset(StaticEndpoint),
+        Assets(AssetEndpoint),
         Resource,
     }
 }
