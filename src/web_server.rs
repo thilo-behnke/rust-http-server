@@ -1,12 +1,15 @@
 pub mod web_server {
-    use crate::endpoint::endpoint::{EndpointHandler, EndpointProvider};
+    use crate::endpoint::endpoint::{EndpointHandler, EndpointProvider, EndpointType};
     use crate::file::file::read_file;
     use crate::parser::parser::parse;
+    use crate::path::path::join_mapped;
     use crate::response::response::{bad_request, not_found, ok};
     use crate::threads::threads::ThreadHandler;
     use crate::types::types::HttpMethod;
+    use std::any::Any;
     use std::io::Read;
     use std::net::{TcpListener, TcpStream};
+    use std::path::{MAIN_SEPARATOR, Path};
 
     const MESSAGE_SIZE: usize = 1024;
 
@@ -117,8 +120,12 @@ pub mod web_server {
         }
 
         fn process_get_request(&self, out_stream: &TcpStream, path: &str) {
-            println!("Received GET request to path {}", path);
-            match self.get_file_content(path) {
+            let corrected_path = match path.len() > 1 && path.ends_with("/") {
+                true => &path[..path.len() - 1],
+                false => &path
+            };
+            println!("Received GET request to path {}", corrected_path);
+            match self.get_file_content(corrected_path) {
                 Ok(content) => {
                     ok(out_stream, content.as_str()).map_or_else(|e| println!("{}", e), |val| val);
                 }
@@ -135,7 +142,14 @@ pub mod web_server {
                 .match_endpoint(String::from(path), HttpMethod::Get);
             match endpoint {
                 Some(e) => {
-                    return read_file(e.path.as_str());
+                    let endpoint_type = &e.endpoint_type;
+                    match endpoint_type {
+                        EndpointType::Asset(asset_endpoint) => {
+                            let asset_path = &asset_endpoint.asset_path;
+                            return read_file(asset_path);
+                        }
+                        _ => panic!("Unable to handle endpoint type: {:?}", e.endpoint_type),
+                    }
                 }
                 None => {
                     let mut error = String::from("Unable to get file content for: ");
