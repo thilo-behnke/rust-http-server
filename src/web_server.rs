@@ -1,12 +1,12 @@
 pub mod web_server {
-    use std::io::Read;
-    use std::net::{TcpListener, TcpStream};
     use crate::endpoint::endpoint::{EndpointHandler, EndpointProvider};
     use crate::file::file::read_file;
     use crate::parser::parser::parse;
     use crate::response::response::{bad_request, not_found, ok};
     use crate::threads::threads::ThreadHandler;
     use crate::types::types::HttpMethod;
+    use std::io::Read;
+    use std::net::{TcpListener, TcpStream};
 
     const MESSAGE_SIZE: usize = 1024;
 
@@ -33,7 +33,7 @@ pub mod web_server {
 
         pub fn run(&mut self) -> std::io::Result<()> {
             self.endpoint_handler
-                .register_assets(String::from("static"), String::from("static"));
+                .register_assets(String::from("files/dummy-website"), String::from("website"));
 
             for stream in self.tcp_listener.incoming() {
                 match stream {

@@ -1,7 +1,9 @@
 pub mod endpoint {
+    use crate::path::path::remap;
     use crate::types::types::HttpMethod;
     use std::fs;
     use std::ops::Add;
+    use std::path::Path;
 
     pub struct EndpointHandler {
         endpoints: Vec<Endpoint>,
@@ -18,40 +20,56 @@ pub mod endpoint {
             };
         }
 
-        pub fn register_assets(&mut self, path: String, mapping: String) {
-            let path_str = path.as_str();
-            for asset_path_res in fs::read_dir(path_str).unwrap() {
-                match asset_path_res {
-                    Ok(asset_path) => {
-                        if let Some(existing) = self.endpoints.iter().find(|e| {
-                            e.path == asset_path.path().into_os_string().into_string().unwrap()
-                        }) {
+        pub fn register_assets(&mut self, location: String, mapping: String) {
+            let path = Path::new(location.as_str());
+            let absolute_path = match path.is_absolute() {
+                true => path.to_path_buf(),
+                false => {
+                    let cleaned_location = match location.starts_with("./") {
+                        true => &location[2..],
+                        false => &location,
+                    };
+                    let current_dir = std::env::current_dir().unwrap();
+                    Path::new(&current_dir).join(cleaned_location)
+                }
+            };
+            for local_asset_path_res in fs::read_dir(absolute_path).unwrap() {
+                match local_asset_path_res {
+                    Ok(local_asset_path) => {
+                        let asset_path_str = local_asset_path
+                            .path()
+                            .into_os_string()
+                            .into_string()
+                            .unwrap();
+                        if let Some(existing) =
+                            self.endpoints.iter().find(|e| e.path == asset_path_str)
+                        {
                             println!(
                                 "Path {} already registered: {:?}. Skip.",
-                                path_str, existing
+                                asset_path_str, existing
                             );
                             continue;
                         }
-                        if asset_path.file_name().into_string().unwrap() == "index.html" {
-                            let full_asset_path =
-                                asset_path.path().into_os_string().into_string().unwrap();
-                            let mut directory = asset_path
-                                .path()
-                                .parent()
-                                .unwrap()
-                                .as_os_str()
-                                .to_os_string()
-                                .into_string()
-                                .unwrap();
-                            directory.push_str("/");
+                        let full_asset_path = local_asset_path.path();
+                        let directory = full_asset_path.parent().unwrap();
+                        let remapped_path = remap(
+                            &full_asset_path,
+                            &directory,
+                            Path::new(&mapping),
+                        )
+                        .as_os_str()
+                        .to_os_string()
+                        .into_string()
+                        .unwrap();
+
+                        if local_asset_path.file_name().into_string().unwrap() == "index.html" {
+                            let alias_path = directory.join(Path::new("/")).into_os_string().to_os_string().into_string().unwrap();
                             let endpoint =
-                                Endpoint::assets(String::from(full_asset_path), vec![directory]);
+                                Endpoint::assets(String::from(remapped_path), vec![alias_path]);
                             println!("Registered endpoint: {:?}", endpoint);
                             self.endpoints.push(endpoint);
                         } else {
-                            let full_asset_path =
-                                asset_path.path().into_os_string().into_string().unwrap();
-                            let endpoint = Endpoint::assets(String::from(full_asset_path), vec![]);
+                            let endpoint = Endpoint::assets(String::from(remapped_path), vec![]);
                             println!("Registered endpoint: {:?}", endpoint);
                             self.endpoints.push(endpoint);
                         }
