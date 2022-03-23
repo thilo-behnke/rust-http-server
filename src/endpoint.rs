@@ -1,22 +1,26 @@
 pub mod endpoint {
-    use std::collections::HashSet;
+    use std::collections::{HashMap, HashSet};
     use crate::path::path::remap;
     use crate::types::types::HttpMethod;
     use std::fs;
     use std::path::{Path, PathBuf};
+    use std::sync::Arc;
 
     pub struct EndpointHandler {
         endpoints: Vec<Endpoint>,
+        resource_handler: HashMap<String, Arc<dyn Fn() -> String + Send>>
     }
 
     impl EndpointHandler {
         pub fn create() -> EndpointHandler {
-            return EndpointHandler { endpoints: vec![] };
+            return EndpointHandler { endpoints: vec![], resource_handler: HashMap::new() };
         }
 
         pub fn to_provider(&self) -> EndpointProvider {
+            let mut resource_handler_copy: HashMap<String, Arc<dyn Fn() -> String + Send>> = self.resource_handler.iter().map(|(key, val)| (key.clone(), Arc::clone(&val))).collect();
             return EndpointProvider {
                 endpoints: self.endpoints.to_vec(), // performance for many threads?
+                resource_handler: resource_handler_copy
             };
         }
 
@@ -94,6 +98,21 @@ pub mod endpoint {
             }
         }
 
+        pub fn register_resource(&mut self, mapping: String, handler_id: String, handler: Box<dyn Fn() -> String + Send>) {
+            let mapping_corrected = match mapping.starts_with("/") {
+                true => mapping,
+                false => ["/", &mapping].join("")
+            };
+            let endpoint = Endpoint {
+                endpoint_type: EndpointType::Resource(ResourceEndpoint {resource_handler_id: handler_id.clone()}),
+                path: mapping_corrected,
+                aliases: vec![],
+                methods: vec![HttpMethod::Get]
+            };
+            self.resource_handler.insert(handler_id.clone(), Arc::from(handler));
+            self.register_endpoint(endpoint);
+        }
+
         fn register_endpoint(&mut self, endpoint: Endpoint) {
             if self.conflicts_existing(&endpoint) {
                 return;
@@ -132,6 +151,7 @@ pub mod endpoint {
 
     pub struct EndpointProvider {
         endpoints: Vec<Endpoint>,
+        resource_handler: HashMap<String, Arc<dyn Fn() -> String + Send>>
     }
 
     impl EndpointProvider {
@@ -148,6 +168,10 @@ pub mod endpoint {
                     (e.path == path || e.aliases.contains(&path)) && e.methods.contains(&method)
                 }
             });
+        }
+        pub fn execute(&self, e: &ResourceEndpoint) -> String {
+            let handler = self.resource_handler.get(&e.resource_handler_id).unwrap();
+            return handler();
         }
     }
 
@@ -167,6 +191,11 @@ pub mod endpoint {
     #[derive(Debug, Clone)]
     pub struct AssetEndpoint {
         pub asset_base: String,
+    }
+
+    #[derive(Debug, Clone)]
+    pub struct ResourceEndpoint {
+        pub resource_handler_id: String
     }
 
     impl Endpoint {
@@ -193,6 +222,6 @@ pub mod endpoint {
     pub enum EndpointType {
         StaticAsset(StaticEndpoint),
         Assets(AssetEndpoint),
-        // Resource,
+        Resource(ResourceEndpoint)
     }
 }

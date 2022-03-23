@@ -37,6 +37,7 @@ pub mod web_server {
             self.endpoint_handler
                 .register_static(String::from("files/dummy-website"), String::from("website"));
             self.endpoint_handler.register_assets(String::from("files/storage/"), String::from("storage"));
+            self.endpoint_handler.register_resource(String::from("math/sqr"), String::from("sqr"), Box::new(|| (4 * 4).to_string()));
 
             for stream in self.tcp_listener.incoming() {
                 match stream {
@@ -45,7 +46,9 @@ pub mod web_server {
                             "Successfully created tcp connection with client {:?}",
                             _stream.peer_addr()
                         );
-                        let endpoint_provider = self.endpoint_handler.to_provider();
+                        // TODO: How to pass closure to other thread?
+                        // https://users.rust-lang.org/t/how-to-send-function-closure-to-another-thread/43549/2
+                        let endpoint_provider = Box::new(self.endpoint_handler.to_provider());
                         match self.thread_handler.spawn(|| {
                             let web_server_thread_handler = WebServerThreadHandler {
                                 endpoint_handler: endpoint_provider,
@@ -67,7 +70,7 @@ pub mod web_server {
     }
 
     struct WebServerThreadHandler {
-        endpoint_handler: EndpointProvider,
+        endpoint_handler: Box<EndpointProvider>
     }
 
     impl WebServerThreadHandler {
@@ -154,8 +157,11 @@ pub mod web_server {
                                 .into_string()
                                 .unwrap();
                             return read_file(&asset_path);
+                        },
+                        EndpointType::Resource(resource_endpoint) => {
+                            return Ok(self.endpoint_handler.execute(resource_endpoint));
                         }
-                        // _ => panic!("Unable to handle endpoint type: {:?}", e.endpoint_type),
+                        _ => panic!("Unable to handle endpoint type: {:?}", e.endpoint_type),
                     }
                 }
                 None => {
