@@ -2,14 +2,13 @@ pub mod web_server {
     use crate::endpoint::endpoint::{EndpointHandler, EndpointProvider, EndpointType};
     use crate::file::file::read_file;
     use crate::parser::parser::parse;
-    use crate::path::path::{join_mapped, remap};
+    use crate::path::path::{remap};
     use crate::response::response::{bad_request, not_found, ok};
     use crate::threads::threads::ThreadHandler;
     use crate::types::types::HttpMethod;
-    use std::any::Any;
     use std::io::Read;
     use std::net::{TcpListener, TcpStream};
-    use std::path::{Path, MAIN_SEPARATOR};
+    use std::path::{Path};
 
     const MESSAGE_SIZE: usize = 1024;
 
@@ -25,8 +24,8 @@ pub mod web_server {
             let tcp_listener =
                 TcpListener::bind("127.0.0.1:8080").expect("Unable to bind to port.");
             println!("Tcp bind established, now listening.");
-            let mut thread_handler = ThreadHandler::create();
-            let mut endpoint_handler = EndpointHandler::create();
+            let thread_handler = ThreadHandler::create();
+            let endpoint_handler = EndpointHandler::create();
             return WebServer {
                 tcp_listener,
                 thread_handler,
@@ -156,7 +155,7 @@ pub mod web_server {
                                 .unwrap();
                             return read_file(&asset_path);
                         }
-                        _ => panic!("Unable to handle endpoint type: {:?}", e.endpoint_type),
+                        // _ => panic!("Unable to handle endpoint type: {:?}", e.endpoint_type),
                     }
                 }
                 None => {

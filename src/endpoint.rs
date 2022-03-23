@@ -3,7 +3,6 @@ pub mod endpoint {
     use crate::path::path::remap;
     use crate::types::types::HttpMethod;
     use std::fs;
-    use std::ops::Add;
     use std::path::{Path, PathBuf};
 
     pub struct EndpointHandler {
@@ -21,7 +20,7 @@ pub mod endpoint {
             };
         }
 
-        pub fn register_assets(&mut self, location: String, mapping: String) -> Result<(), String> {
+        pub fn register_assets(&mut self, location: String, mapping: String) {
             let absolute_path = self.map_to_absolute(&location).into_os_string().into_string().unwrap();
             let mapping_corrected = match mapping.starts_with("/") {
                 true => mapping,
@@ -36,7 +35,6 @@ pub mod endpoint {
                 }),
             };
             self.register_endpoint(endpoint);
-            return Ok(())
         }
 
         pub fn register_static(&mut self, location: String, mapping: String) {
@@ -88,6 +86,7 @@ pub mod endpoint {
                                 full_asset_path.into_os_string().into_string().unwrap(),
                                 vec![],
                             );
+                            self.register_endpoint(endpoint);
                         }
                     }
                     Err(_) => continue,
@@ -194,6 +193,6 @@ pub mod endpoint {
     pub enum EndpointType {
         StaticAsset(StaticEndpoint),
         Assets(AssetEndpoint),
-        Resource,
+        // Resource,
     }
 }

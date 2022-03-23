@@ -1,6 +1,5 @@
 pub mod file {
     use std::fs;
-    use std::path;
     use std::path::Path;
 
     pub fn read_file(file_path: &String) -> Result<String, String> {
