@@ -1,4 +1,5 @@
 pub mod endpoint {
+    use std::collections::HashSet;
     use crate::path::path::remap;
     use crate::types::types::HttpMethod;
     use std::fs;
@@ -21,10 +22,6 @@ pub mod endpoint {
         }
 
         pub fn register_assets(&mut self, location: String, mapping: String) -> Result<(), String> {
-            if let Some(endpoint) = self.endpoints.iter().find(|e| e.path.starts_with(&mapping)) {
-                let error = format!("Tried to register asset endpoint at location {}, however another endpoint is already registered within: {:?}", location, endpoint);
-                return Err(error)
-            }
             let absolute_path = self.map_to_absolute(&location).into_os_string().into_string().unwrap();
             let mapping_corrected = match mapping.starts_with("/") {
                 true => mapping,
@@ -38,8 +35,7 @@ pub mod endpoint {
                     asset_base: absolute_path,
                 }),
             };
-            println!("Registered endpoint: {:?}", endpoint);
-            self.endpoints.push(endpoint);
+            self.register_endpoint(endpoint);
             return Ok(())
         }
 
@@ -85,21 +81,38 @@ pub mod endpoint {
                                 full_asset_path.into_os_string().into_string().unwrap(),
                                 vec![alias_path],
                             );
-                            println!("Registered endpoint: {:?}", endpoint);
-                            self.endpoints.push(endpoint);
+                            self.register_endpoint(endpoint);
                         } else {
                             let endpoint = Endpoint::asset(
                                 String::from(remapped_path_str),
                                 full_asset_path.into_os_string().into_string().unwrap(),
                                 vec![],
                             );
-                            println!("Registered endpoint: {:?}", endpoint);
-                            self.endpoints.push(endpoint);
                         }
                     }
                     Err(_) => continue,
                 }
             }
+        }
+
+        fn register_endpoint(&mut self, endpoint: Endpoint) {
+            if self.conflicts_existing(&endpoint) {
+                return;
+            }
+            println!("Registered endpoint: {:?}", endpoint);
+            self.endpoints.push(endpoint);
+        }
+
+        fn conflicts_existing(&self, endpoint: &Endpoint) -> bool {
+            let existing_paths: HashSet<&String> = HashSet::from_iter(self.endpoints.iter().flat_map(|e| e.get_all_paths()));
+            let endpoint_paths: HashSet<&String> = endpoint.get_all_paths();
+
+            let conflicting_endpoints = existing_paths.intersection(&endpoint_paths);
+            if conflicting_endpoints.count() > 0 {
+                println!("{:?} conflicts with existing paths: {:?}", endpoint, endpoint_paths);
+                return true;
+            }
+            return false;
         }
 
         fn map_to_absolute(&self, location: &String) -> PathBuf {
@@ -167,6 +180,13 @@ pub mod endpoint {
                 aliases,
                 methods: vec![HttpMethod::Get],
             };
+        }
+
+        pub fn get_all_paths(&self) -> HashSet<&String> {
+            let mut all_paths = self.aliases.iter().collect::<HashSet<&String>>();
+            let path_set: HashSet<&String> = [&self.path].iter().cloned().collect();
+            all_paths.extend(path_set);
+            all_paths
         }
     }
 
