@@ -1,30 +1,46 @@
 pub mod endpoint {
-    use std::collections::HashSet;
     use crate::path::path::remap;
-    use crate::types::types::HttpMethod;
+    use crate::resource::resource::ResourceHandler;
+    use crate::types::types::{HttpMethod, HttpRequest};
+    use std::collections::{HashMap, HashSet};
     use std::fs;
     use std::path::{Path, PathBuf};
+    use std::sync::Arc;
 
     pub struct EndpointHandler {
         endpoints: Vec<Endpoint>,
+        resource_handler: HashMap<String, Arc<ResourceHandler>>,
     }
 
     impl EndpointHandler {
         pub fn create() -> EndpointHandler {
-            return EndpointHandler { endpoints: vec![] };
+            return EndpointHandler {
+                endpoints: vec![],
+                resource_handler: HashMap::new(),
+            };
         }
 
         pub fn to_provider(&self) -> EndpointProvider {
+            let mut resource_handler_copy: HashMap<String, Arc<ResourceHandler>> = self
+                .resource_handler
+                .iter()
+                .map(|(key, val)| (key.clone(), Arc::clone(val)))
+                .collect();
             return EndpointProvider {
                 endpoints: self.endpoints.to_vec(), // performance for many threads?
+                resource_handler: resource_handler_copy,
             };
         }
 
         pub fn register_assets(&mut self, location: String, mapping: String) {
-            let absolute_path = self.map_to_absolute(&location).into_os_string().into_string().unwrap();
+            let absolute_path = self
+                .map_to_absolute(&location)
+                .into_os_string()
+                .into_string()
+                .unwrap();
             let mapping_corrected = match mapping.starts_with("/") {
                 true => mapping,
-                false => ["/", &mapping].join("")
+                false => ["/", &mapping].join(""),
             };
             let endpoint = Endpoint {
                 path: mapping_corrected,
@@ -94,6 +110,28 @@ pub mod endpoint {
             }
         }
 
+        pub fn register_resource(
+            &mut self,
+            mapping: String,
+            handler_id: String,
+            handler: Box<ResourceHandler>,
+        ) {
+            let mapping_corrected = match mapping.starts_with("/") {
+                true => mapping,
+                false => ["/", &mapping].join(""),
+            };
+            let endpoint = Endpoint {
+                endpoint_type: EndpointType::Resource(ResourceEndpoint {
+                    resource_handler_id: handler_id.clone(),
+                }),
+                path: mapping_corrected,
+                aliases: vec![],
+                methods: vec![HttpMethod::Get],
+            };
+            self.resource_handler.insert(handler_id.clone(), Arc::from(handler));
+            self.register_endpoint(endpoint);
+        }
+
         fn register_endpoint(&mut self, endpoint: Endpoint) {
             if self.conflicts_existing(&endpoint) {
                 return;
@@ -103,12 +141,16 @@ pub mod endpoint {
         }
 
         fn conflicts_existing(&self, endpoint: &Endpoint) -> bool {
-            let existing_paths: HashSet<&String> = HashSet::from_iter(self.endpoints.iter().flat_map(|e| e.get_all_paths()));
+            let existing_paths: HashSet<&String> =
+                HashSet::from_iter(self.endpoints.iter().flat_map(|e| e.get_all_paths()));
             let endpoint_paths: HashSet<&String> = endpoint.get_all_paths();
 
             let conflicting_endpoints = existing_paths.intersection(&endpoint_paths);
             if conflicting_endpoints.count() > 0 {
-                println!("{:?} conflicts with existing paths: {:?}", endpoint, endpoint_paths);
+                println!(
+                    "{:?} conflicts with existing paths: {:?}",
+                    endpoint, endpoint_paths
+                );
                 return true;
             }
             return false;
@@ -132,6 +174,7 @@ pub mod endpoint {
 
     pub struct EndpointProvider {
         endpoints: Vec<Endpoint>,
+        resource_handler: HashMap<String, Arc<ResourceHandler>>,
     }
 
     impl EndpointProvider {
@@ -143,11 +186,13 @@ pub mod endpoint {
             return self.endpoints.iter().find(|e| match &e.endpoint_type {
                 EndpointType::Assets(_) => {
                     return path.starts_with(&e.path);
-                },
-                _ => {
-                    (e.path == path || e.aliases.contains(&path)) && e.methods.contains(&method)
                 }
+                _ => (e.path == path || e.aliases.contains(&path)) && e.methods.contains(&method),
             });
+        }
+        pub fn execute(&self, r: &ResourceEndpoint, request: &HttpRequest) -> String {
+            let handler = self.resource_handler.get(&r.resource_handler_id).unwrap();
+            return handler.handle(request);
         }
     }
 
@@ -167,6 +212,11 @@ pub mod endpoint {
     #[derive(Debug, Clone)]
     pub struct AssetEndpoint {
         pub asset_base: String,
+    }
+
+    #[derive(Debug, Clone)]
+    pub struct ResourceEndpoint {
+        pub resource_handler_id: String,
     }
 
     impl Endpoint {
@@ -193,6 +243,6 @@ pub mod endpoint {
     pub enum EndpointType {
         StaticAsset(StaticEndpoint),
         Assets(AssetEndpoint),
-        // Resource,
+        Resource(ResourceEndpoint),
     }
 }

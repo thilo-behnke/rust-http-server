@@ -2,19 +2,23 @@ pub mod types {
     use std::collections::HashMap;
     use std::fmt;
     use std::fmt::Formatter;
+    use crate::request_helper::request_helper::RequestParameter;
 
+    #[derive(Debug)]
     pub struct GeneralRequest<'a> {
         pub method: HttpMethod,
+        pub params: Vec<RequestParameter>,
         pub path: &'a str,
         pub version: HttpVersion,
     }
 
+    #[derive(Debug)]
     pub struct HttpRequest<'a> {
         pub general: GeneralRequest<'a>,
         pub headers: HashMap<String, String>,
     }
 
-    #[derive(Debug, Clone, PartialEq)]
+    #[derive(Debug, Copy, Clone, PartialEq)]
     pub enum HttpMethod {
         Head,
         Options,
@@ -24,6 +28,7 @@ pub mod types {
         Delete,
     }
 
+    #[derive(Debug)]
     pub enum HttpVersion {
         One,
         Two,
