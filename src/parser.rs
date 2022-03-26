@@ -19,8 +19,13 @@ pub mod parser {
         }
     }
 
-    fn parse_headers(_headers: &[&str]) -> HashMap<String, String> {
-        HashMap::new()
+    fn parse_headers(headers: &[&str]) -> HashMap<String, String> {
+        headers
+            .iter()
+            .map(|h| h.split(":").map(|it| it.trim_start().trim_end()).collect::<Vec<&str>>())
+            .filter(|h| h.len() == 2)
+            .map(|h| (String::from(h[0]), String::from(h[1])))
+            .collect()
     }
 
     fn parse_general(general: &str) -> Result<GeneralRequest, &str> {
