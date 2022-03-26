@@ -45,7 +45,13 @@ pub mod web_server {
                 String::from("math/sqr"),
                 String::from("sqr"),
                 Box::new(ResourceHandler::new(
-                    { || (4 * 4).to_string() },
+                    {|| {
+                        let mut res = String::from("<div>");
+                        res.push_str(&*(4 * 4).to_string());
+                        res.push_str("</div>");
+                        res.push_str("\r\n");
+                        return res
+                    } },
                     vec![ResourceParameter::p_i8(
                         String::from("n"),
                         ResourceParameterLocation::Query,
