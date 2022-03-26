@@ -3,13 +3,15 @@ pub mod web_server {
     use crate::file::file::read_file;
     use crate::parser::parser::parse;
     use crate::path::path::remap;
-    use crate::resource::resource::{ResourceHandler, ResourceParameter, ResourceParameterLocation};
-    use crate::response::response::{bad_request, not_found, ok};
+    use crate::resource::resource::{
+        ResourceHandler, ResourceParameter, ResourceParameterLocation,
+    };
     use crate::threads::threads::ThreadHandler;
     use crate::types::types::{HttpMethod, HttpRequest};
     use std::io::Read;
     use std::net::{TcpListener, TcpStream};
     use std::path::Path;
+    use crate::response::response::ResponseHandler;
 
     const MESSAGE_SIZE: usize = 1024;
 
@@ -44,7 +46,10 @@ pub mod web_server {
                 String::from("sqr"),
                 Box::new(ResourceHandler::new(
                     { || (4 * 4).to_string() },
-                    vec![ResourceParameter::p_i8(String::from("n"), ResourceParameterLocation::Query)],
+                    vec![ResourceParameter::p_i8(
+                        String::from("n"),
+                        ResourceParameterLocation::Query,
+                    )],
                 )),
             );
 
@@ -120,21 +125,30 @@ pub mod web_server {
             match request {
                 Ok(req) => {
                     println!("Received http request: {:?}", req);
+                    let compress = match req.headers.iter().find(|(name, value)| **name == String::from("accept-encoding")) {
+                        Some((_, val)) => val.split(",").map(|it| it.trim_start().trim_end()).collect::<Vec<&str>>().contains(&"gzip"),
+                        None => false
+                    };
+                    let response_handler = match compress {
+                        true => ResponseHandler::gzip(),
+                        false => ResponseHandler::uncompressed()
+                    };
                     match (req.general.method, req.general.path) {
-                        (HttpMethod::Get, path) => {
-                            self.process_get_request(out_stream, &req);
+                        (HttpMethod::Get, _) => {
+                            self.process_get_request(out_stream, response_handler, &req);
                         }
-                        _ => not_found(out_stream).map_or_else(|e| println!("{}", e), |val| val),
+                        _ => response_handler.not_found(out_stream).map_or_else(|e| println!("{}", e), |val| val),
                     }
-                },
+                }
                 Err(e) => {
                     println!("{}", e);
-                    bad_request(out_stream).map_or_else(|e| println!("{}", e), |val| val)
+                    let response_handler = ResponseHandler::uncompressed();
+                    response_handler.bad_request(out_stream).map_or_else(|e| println!("{}", e), |val| val)
                 }
             }
         }
 
-        fn process_get_request(&self, out_stream: &TcpStream, request: &HttpRequest) {
+        fn process_get_request(&self, out_stream: &TcpStream, response_handler: Box<ResponseHandler>, request: &HttpRequest) {
             let path = &request.general.path;
             let corrected_path = match path.len() > 1 && path.ends_with("/") {
                 true => &path[..path.len() - 1],
@@ -143,11 +157,11 @@ pub mod web_server {
             println!("Received GET request to path {}", corrected_path);
             match self.get_file_content(corrected_path, request) {
                 Ok(content) => {
-                    ok(out_stream, content.as_str()).map_or_else(|e| println!("{}", e), |val| val);
+                    response_handler.ok(out_stream, content.as_str()).map_or_else(|e| println!("{}", e), |val| val);
                 }
                 Err(_) => {
                     println!("--> not found");
-                    not_found(out_stream).map_or_else(|e| println!("{}", e), |val| val)
+                    response_handler.not_found(out_stream).map_or_else(|e| println!("{}", e), |val| val)
                 }
             };
         }

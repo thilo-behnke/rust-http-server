@@ -1,7 +1,7 @@
 pub mod parser {
+    use crate::request_helper::request_helper::{clean_path, get_parameters_from_path};
     use crate::types::types::{GeneralRequest, HttpMethod, HttpRequest, HttpVersion};
     use std::collections::HashMap;
-    use crate::request_helper::request_helper::{clean_path, get_parameters_from_path};
 
     pub fn parse(request: &str) -> Result<HttpRequest, &str> {
         let request_split: Vec<&str> = request.split("\r\n").collect();
@@ -22,9 +22,13 @@ pub mod parser {
     fn parse_headers(headers: &[&str]) -> HashMap<String, String> {
         headers
             .iter()
-            .map(|h| h.split(":").map(|it| it.trim_start().trim_end()).collect::<Vec<&str>>())
+            .map(|h| {
+                h.split(":")
+                    .map(|it| it.trim_start().trim_end())
+                    .collect::<Vec<&str>>()
+            })
             .filter(|h| h.len() == 2)
-            .map(|h| (String::from(h[0]), String::from(h[1])))
+            .map(|h| (String::from(h[0]).to_lowercase(), String::from(h[1])))
             .collect()
     }
 
@@ -62,7 +66,7 @@ pub mod parser {
                         version: HttpVersion::One,
                     }),
                     Err(e) => Err(e),
-                }
+                };
             }
             // TODO: Refactor to use error handling for request method (and version)
             [method, path, version] => Ok(GeneralRequest {

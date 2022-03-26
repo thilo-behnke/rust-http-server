@@ -1,7 +1,7 @@
 pub mod resource {
-    use std::sync::Arc;
     use crate::request_helper::request_helper::get_parameters_from_path;
     use crate::types::types::HttpRequest;
+    use std::sync::Arc;
 
     pub struct ResourceHandler {
         parameters: Vec<ResourceParameter>,
@@ -12,13 +12,13 @@ pub mod resource {
         pub fn new(handler: fn() -> String, parameters: Vec<ResourceParameter>) -> ResourceHandler {
             ResourceHandler {
                 parameters,
-                handler
+                handler,
             }
         }
 
         pub fn handle(&self, request: &HttpRequest) -> String {
             let path = request.general.path;
-            return (self.handler)()
+            return (self.handler)();
         }
     }
 

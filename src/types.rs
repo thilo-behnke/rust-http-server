@@ -1,8 +1,8 @@
 pub mod types {
+    use crate::request_helper::request_helper::RequestParameter;
     use std::collections::HashMap;
     use std::fmt;
     use std::fmt::Formatter;
-    use crate::request_helper::request_helper::RequestParameter;
 
     #[derive(Debug)]
     pub struct GeneralRequest<'a> {

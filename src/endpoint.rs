@@ -128,7 +128,8 @@ pub mod endpoint {
                 aliases: vec![],
                 methods: vec![HttpMethod::Get],
             };
-            self.resource_handler.insert(handler_id.clone(), Arc::from(handler));
+            self.resource_handler
+                .insert(handler_id.clone(), Arc::from(handler));
             self.register_endpoint(endpoint);
         }
 
