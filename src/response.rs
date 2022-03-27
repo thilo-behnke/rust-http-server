@@ -14,11 +14,11 @@ pub mod response {
     impl ResponseHandler {
 
         pub fn uncompressed() -> Box<ResponseHandler> {
-            ResponseHandler::create(Box::from(DefaultResponseWriter{}), Option::None)
+            ResponseHandler::create(Box::from(DefaultResponseWriter::uncompressed()), Option::None)
         }
 
         pub fn gzip() -> Box<ResponseHandler> {
-            ResponseHandler::create(Box::from(GzipResponseWriter{ delegate: Box::from(DefaultResponseWriter {}) }), Option::Some(String::from("gzip")))
+            ResponseHandler::create(Box::from(DefaultResponseWriter::gzip()), Option::Some(String::from("gzip")))
         }
 
         fn create(writer: Box<dyn ResponseWriter>, content_encoding: Option<String>) -> Box<ResponseHandler> {
@@ -34,7 +34,6 @@ pub mod response {
                 None => String::from("")
             };
             let headers = format!(
-                // "HTTP/1.1 200 OK\r\n{}ContentLength: {}\r\n\r\n",
                 "HTTP/1.1 200 OK\r\n{}",
                 additional_headers
             );
@@ -56,33 +55,32 @@ pub mod response {
         }
     }
 
-
     trait ResponseWriter {
         fn write(&self, headers: &str, content: Option<String>, out_stream: &TcpStream) -> Result<(), String>;
-        fn write_bytes(&self, content: &[u8], out_stream: &TcpStream) -> Result<(), String>;
     }
 
-    struct DefaultResponseWriter {}
-    impl ResponseWriter for DefaultResponseWriter {
-        fn write(&self, headers: &str, content: Option<String>, mut out_stream: &TcpStream) -> Result<(), String> {
-            if let Err(e) = self.write_bytes(headers.as_bytes(), out_stream) {
-                return Err(format!("Failed to write headers: {}", e));
+    struct DefaultResponseWriter {
+        header_encoder: Box<dyn ResponseEncoder>,
+        content_encoder: Box<dyn ResponseEncoder>,
+    }
+
+    impl DefaultResponseWriter {
+        pub fn uncompressed() -> DefaultResponseWriter {
+            DefaultResponseWriter {
+                header_encoder: Box::from(PlainResponseEncoder {}),
+                content_encoder: Box::from(PlainResponseEncoder {})
             }
-            if let Some(c) = content {
-                let content_bytes = c.as_bytes();
-                let content_length_header = format!("Content-Length: {}\r\n\r\n", content_bytes.len());
-                let content_length_header_bytes = content_length_header.as_bytes();
-                if let Err(e) = self.write_bytes(content_length_header_bytes, out_stream) {
-                    return Err(format!("Failed to write content-length header: {}", e));
-                }
-                if let Err(e) = self.write_bytes(content_bytes, out_stream) {
-                    return Err(format!("Failed to write content: {}", e));
-                }
-            }
-            return Ok(())
         }
-        fn write_bytes(&self, content: &[u8], mut out_stream: &TcpStream) -> Result<(), String> {
-            return match out_stream.write(content) {
+
+        pub fn gzip() -> DefaultResponseWriter {
+            DefaultResponseWriter {
+                header_encoder: Box::from(PlainResponseEncoder {}),
+                content_encoder: Box::from(GzipResponseEncoder {})
+            }
+        }
+
+        fn write_bytes(&self, bytes: &[u8], mut out_stream: &TcpStream) -> Result<(), String> {
+            match out_stream.write(bytes) {
                 Err(_) => Err(String::from("Failed to write response")),
                 Ok(_) => match out_stream.flush() {
                     Err(e) => {
@@ -90,45 +88,58 @@ pub mod response {
                     }
                     Ok(()) => Ok(()),
                 },
-            };
+            }
         }
     }
 
-    struct GzipResponseWriter {
-        delegate: Box<dyn ResponseWriter>
-    }
-    impl ResponseWriter for GzipResponseWriter {
-        fn write(&self, headers: &str, content: Option<String>, mut out_stream: &TcpStream) -> Result<(), String> {
-            if let Err(e) = self.delegate.write_bytes(headers.as_bytes(), out_stream) {
-                return Err(e);
+    impl ResponseWriter for DefaultResponseWriter {
+        fn write(&self, headers: &str, content: Option<String>, out_stream: &TcpStream) -> Result<(), String> {
+            let encoded_header_res = self.header_encoder.encode(headers);
+            if let Err(e) = encoded_header_res {
+                return Err(format!("Failed to write response: {}", e))
             }
-            if let Some(c) = content {
-                let content_bytes = c.as_bytes();
-                if let Err(e) = self.write_bytes(content_bytes, out_stream) {
-                    return Err(e);
+            let encoded_header = encoded_header_res.unwrap();
+            let encoded_content_res = match content {
+                Some(c) => self.content_encoder.encode(&c),
+                None => {
+                    Ok(vec![])
                 }
+            };
+            if let Err(e) = encoded_content_res {
+                return Err(format!("Failed to write response: {}", e))
             }
-            Ok(())
-        }
+            let encoded_content = encoded_content_res.unwrap();
 
-        fn write_bytes(&self, content: &[u8], out_stream: &TcpStream) -> Result<(), String> {
+            let content_length_header = format!("Content-Length: {}\r\n\r\n", encoded_content.len());
+            let content_length_header_bytes = content_length_header.as_bytes().to_vec();
+
+            let res_bytes: Vec<u8> = [encoded_header, content_length_header_bytes, encoded_content].concat();
+            self.write_bytes(&*res_bytes, out_stream)
+        }
+    }
+
+    trait ResponseEncoder {
+        fn encode(&self, val: & str) -> Result<Vec<u8>, String>;
+    }
+
+    struct PlainResponseEncoder {}
+    impl ResponseEncoder for PlainResponseEncoder {
+        fn encode(&self, val: & str) -> Result<Vec<u8>, String> {
+            Ok(val.as_bytes().to_vec())
+        }
+    }
+
+    struct GzipResponseEncoder {}
+    impl ResponseEncoder for GzipResponseEncoder {
+        fn encode(&self, val: & str) -> Result<Vec<u8>, String> {
             let mut compressed = GzEncoder::new(Vec::new(), Compression::default());
-            if let Err(e) = compressed.write_all(content) {
-                return Err(format!("Failed to write to compressor: {}", e))
+            if let Err(e) = compressed.write_all(val.as_bytes()) {
+                return Err(format!("Failed to write to compressor: {}", e));
             }
             let compressed_bytes_res = compressed.finish();
             match compressed_bytes_res {
                 Ok(compressed_bytes) => {
-                    let content_length_header = format!("Content-Length: {}\r\n\r\n", compressed_bytes.len());
-                    let content_length_header_bytes = content_length_header.as_bytes();
-
-                    if let Err(e) = self.delegate.write_bytes(content_length_header_bytes, out_stream) {
-                        return Err(format!("Failed to write content length header: {}", e));
-                    }
-                    if let Err(e) = self.delegate.write_bytes(&*compressed_bytes, out_stream) {
-                        return Err(format!("Failed to write content: {}", e));
-                    }
-                    return Ok(())
+                    return Ok(compressed_bytes)
                 }
                 Err(e) => Err(format!("Failed to compress content: {}", e))
             }
