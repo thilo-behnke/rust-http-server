@@ -74,8 +74,6 @@ pub mod web_server {
                             "Successfully created tcp connection with client {:?}",
                             _stream.peer_addr()
                         );
-                        // TODO: How to pass closure to other thread?
-                        // https://users.rust-lang.org/t/how-to-send-function-closure-to-another-thread/43549/2
                         let endpoint_provider = Box::new(self.endpoint_handler.to_provider());
                         match self.thread_handler.spawn(|| {
                             let web_server_thread_handler = WebServerThreadHandler {
