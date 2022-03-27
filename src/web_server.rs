@@ -46,15 +46,16 @@ pub mod web_server {
                 .register_static(String::from("files/dummy-website"), String::from("website"));
             self.endpoint_handler
                 .register_assets(String::from("files/storage/"), String::from("storage"));
+            let template_engine = self.template_engine.clone();
             self.endpoint_handler.register_resource(
                 String::from("math/sqr"),
                 String::from("sqr"),
                 Box::new(ResourceHandler::new(
-                    Box::from({|| {
+                    Box::from({move || {
                         let template = "<div>${sqr}</div>\r\n";
                         let res = (4 * 4).to_string();
                         let context: HashMap<String, String> = HashMap::from([("sqr".to_string(), res)]);
-                        self.template_engine.render(template, context)
+                        template_engine.render(template, context)
                     }}),
                     vec![ResourceParameter::p_i8(
                         String::from("n"),
