@@ -1,4 +1,5 @@
 pub mod web_server {
+    use std::collections::HashMap;
     use crate::endpoint::endpoint::{EndpointHandler, EndpointProvider, EndpointType};
     use crate::file::file::read_file;
     use crate::parser::parser::parse;
@@ -12,6 +13,7 @@ pub mod web_server {
     use std::net::{TcpListener, TcpStream};
     use std::path::Path;
     use crate::response::response::ResponseHandler;
+    use crate::template_engine::template_engine::TemplateEngine;
 
     const MESSAGE_SIZE: usize = 1024;
 
@@ -46,11 +48,11 @@ pub mod web_server {
                 String::from("sqr"),
                 Box::new(ResourceHandler::new(
                     {|| {
-                        let mut res = String::from("<div>");
-                        res.push_str(&*(4 * 4).to_string());
-                        res.push_str("</div>");
-                        res.push_str("\r\n");
-                        return res
+                        let template = "<div>${sqr}</div>\r\n";
+                        let template_engine = TemplateEngine {};
+                        let res = (4 * 4).to_string();
+                        let context: HashMap<String, String> = HashMap::from([("sqr".to_string(), res)]);
+                        template_engine.render(template, context)
                     } },
                     vec![ResourceParameter::p_i8(
                         String::from("n"),

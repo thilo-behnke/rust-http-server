@@ -10,6 +10,7 @@ mod response;
 mod threads;
 mod types;
 mod web_server;
+mod template_engine;
 
 fn main() -> std::io::Result<()> {
     WebServer::create().run()
