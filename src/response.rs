@@ -34,9 +34,9 @@ pub mod response {
                 None => String::from("")
             };
             let headers = format!(
-                "HTTP/1.1 200 OK\r\n{}ContentLength: {}\r\n\r\n",
-                additional_headers,
-                content.len(),
+                // "HTTP/1.1 200 OK\r\n{}ContentLength: {}\r\n\r\n",
+                "HTTP/1.1 200 OK\r\n{}",
+                additional_headers
             );
             return self.write(headers.as_str(), Option::Some(String::from(content)), out_stream);
         }
@@ -68,6 +68,9 @@ pub mod response {
             self.write_bytes(headers.as_bytes(), out_stream);
             if let Some(c) = content {
                 let content_bytes = c.as_bytes();
+                let content_length_header = format!("Content-Length: {}\r\n\r\n", content_bytes.len());
+                let content_length_header_bytes = content_length_header.as_bytes();
+                self.write_bytes(content_length_header_bytes, out_stream);
                 self.write_bytes(content_bytes, out_stream);
             }
             // TODO: Fix.
@@ -93,7 +96,8 @@ pub mod response {
         fn write(&self, headers: &str, content: Option<String>, mut out_stream: &TcpStream) -> Result<(), String> {
             self.delegate.write_bytes(headers.as_bytes(), out_stream);
             if let Some(c) = content {
-                self.write_bytes(c.as_bytes(), out_stream);
+                let content_bytes = c.as_bytes();
+                self.write_bytes(content_bytes, out_stream);
             }
             Ok(())
         }
@@ -102,6 +106,11 @@ pub mod response {
             let mut compressed = GzEncoder::new(Vec::new(), Compression::default());
             compressed.write_all(content).unwrap();
             let compressed_bytes = compressed.finish().unwrap();
+
+            let content_length_header = format!("Content-Length: {}\r\n\r\n", compressed_bytes.len());
+            let content_length_header_bytes = content_length_header.as_bytes();
+
+            self.delegate.write_bytes(content_length_header_bytes, out_stream);
             self.delegate.write_bytes(&*compressed_bytes, out_stream)
         }
     }
