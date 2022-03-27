@@ -12,26 +12,27 @@ pub mod web_server {
     use std::io::Read;
     use std::net::{TcpListener, TcpStream};
     use std::path::Path;
+    use crate::request_helper::request_helper::RequestParameter;
     use crate::response::response::ResponseHandler;
     use crate::template_engine::template_engine::TemplateEngine;
 
     const MESSAGE_SIZE: usize = 1024;
 
-    pub struct WebServer {
+    pub struct WebServer<'a> {
         tcp_listener: TcpListener,
         thread_handler: ThreadHandler,
-        endpoint_handler: EndpointHandler,
+        endpoint_handler: EndpointHandler<'a>,
         template_engine: TemplateEngine
     }
 
-    impl WebServer {
-        pub fn create() -> WebServer {
+    impl WebServer<'_> {
+        pub fn create() -> WebServer<'static> {
             println!("Starting tcp bind to 8080.");
             let tcp_listener =
                 TcpListener::bind("127.0.0.1:8080").expect("Unable to bind to port.");
             println!("Tcp bind established, now listening.");
             let thread_handler = ThreadHandler::create();
-            let endpoint_handler = EndpointHandler::create();
+            let endpoint_handler = EndpointHandler::create::<'static>();
             let template_engine = TemplateEngine {};
             return WebServer {
                 tcp_listener,
@@ -47,16 +48,18 @@ pub mod web_server {
             self.endpoint_handler
                 .register_assets(String::from("files/storage/"), String::from("storage"));
             let template_engine = self.template_engine.clone();
+            let handler: Box<dyn FnOnce(&Vec<RequestParameter>) -> String + Sync + Send> = Box::from({move |args: &Vec<RequestParameter>| {
+                let template = "<div>${sqr}</div>\r\n";
+                let res = (4 * 4).to_string();
+                let context: HashMap<String, String> = HashMap::from([("sqr".to_string(), res)]);
+                // template_engine.render(template, context)
+                return "test".to_string()
+            }});
             self.endpoint_handler.register_resource(
                 String::from("math/sqr"),
                 String::from("sqr"),
-                Box::new(ResourceHandler::new(
-                    Box::from({move || {
-                        let template = "<div>${sqr}</div>\r\n";
-                        let res = (4 * 4).to_string();
-                        let context: HashMap<String, String> = HashMap::from([("sqr".to_string(), res)]);
-                        template_engine.render(template, context)
-                    }}),
+                Box::new(
+                    ResourceHandler::new(&handler,
                     vec![ResourceParameter::p_i8(
                         String::from("n"),
                         ResourceParameterLocation::Query,
@@ -94,11 +97,11 @@ pub mod web_server {
         }
     }
 
-    struct WebServerThreadHandler {
-        endpoint_handler: Box<EndpointProvider>,
+    struct WebServerThreadHandler<'a> {
+        endpoint_handler: Box<EndpointProvider<'a>>,
     }
 
-    impl WebServerThreadHandler {
+    impl WebServerThreadHandler<'_> {
         fn handle_client(&self, mut stream: TcpStream) -> std::io::Result<()> {
             let mut received: Vec<u8> = vec![];
             let mut buf = [0u8; MESSAGE_SIZE];
@@ -184,10 +187,10 @@ pub mod web_server {
             match endpoint {
                 Some(e) => {
                     let endpoint_type = &e.endpoint_type;
-                    match endpoint_type {
+                    return match endpoint_type {
                         EndpointType::StaticAsset(static_endpoint) => {
                             let asset_path = &static_endpoint.asset_path;
-                            return read_file(asset_path);
+                            read_file(asset_path)
                         }
                         EndpointType::Assets(asset_endpoint) => {
                             let asset_path = remap(
@@ -195,13 +198,13 @@ pub mod web_server {
                                 Path::new(&e.path),
                                 Path::new(&asset_endpoint.asset_base),
                             )
-                            .into_os_string()
-                            .into_string()
-                            .unwrap();
-                            return read_file(&asset_path);
+                                .into_os_string()
+                                .into_string()
+                                .unwrap();
+                            read_file(&asset_path)
                         }
                         EndpointType::Resource(resource_endpoint) => {
-                            return Ok(self.endpoint_handler.execute(resource_endpoint, request));
+                            Ok(self.endpoint_handler.execute(resource_endpoint, request))
                         }
                     }
                 }

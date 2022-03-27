@@ -7,7 +7,7 @@ pub mod types {
     #[derive(Debug)]
     pub struct GeneralRequest<'a> {
         pub method: HttpMethod,
-        pub params: Vec<RequestParameter>,
+        pub params: Vec<RequestParameter<'a>>,
         pub path: &'a str,
         pub version: HttpVersion,
     }

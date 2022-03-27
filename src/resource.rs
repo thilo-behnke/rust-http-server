@@ -1,13 +1,14 @@
 pub mod resource {
+    use crate::request_helper::request_helper::RequestParameter;
     use crate::types::types::HttpRequest;
 
-    pub struct ResourceHandler {
+    pub struct ResourceHandler<'a> {
         parameters: Vec<ResourceParameter>,
-        handler: Box<dyn Fn() -> String + Sync + Send>,
+        handler: &'a Box<dyn FnOnce(&Vec<RequestParameter>) -> String + Sync + Send>,
     }
 
-    impl ResourceHandler {
-        pub fn new(handler: Box<dyn Fn() -> String + Sync + Send>, parameters: Vec<ResourceParameter>) -> ResourceHandler {
+    impl ResourceHandler<'_> {
+        pub fn new(handler: &Box<dyn FnOnce(&Vec<RequestParameter>) -> String + Sync + Send>, parameters: Vec<ResourceParameter>) -> ResourceHandler {
             ResourceHandler {
                 parameters,
                 handler,
@@ -15,8 +16,8 @@ pub mod resource {
         }
 
         pub fn handle(&self, request: &HttpRequest) -> String {
-            let path = request.general.path;
-            return (self.handler)();
+            let args = &request.general.params;
+            return (self.handler)(args);
         }
     }
 

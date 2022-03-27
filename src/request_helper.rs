@@ -23,7 +23,7 @@ pub mod request_helper {
                     .map(|it| {
                         let params_split: Vec<&str> = it.split("=").collect();
                         let (name, value) =
-                            (String::from(params_split[0]), String::from(params_split[1]));
+                            (params_split[0], params_split[1]);
                         return RequestParameter::Query(RequestParameterValue { name, value });
                     })
                     .collect()
@@ -38,15 +38,15 @@ pub mod request_helper {
         }
     }
 
-    #[derive(Debug)]
-    pub enum RequestParameter {
-        Query(RequestParameterValue),
-        Path(RequestParameterValue),
+    #[derive(Debug, Copy, Clone)]
+    pub enum RequestParameter<'a> {
+        Query(RequestParameterValue<'a>),
+        Path(RequestParameterValue<'a>),
     }
 
-    #[derive(Debug)]
-    pub struct RequestParameterValue {
-        pub name: String,
-        pub value: String,
+    #[derive(Debug, Copy, Clone)]
+    pub struct RequestParameterValue<'a> {
+        pub name: &'a str,
+        pub value: &'a str,
     }
 }

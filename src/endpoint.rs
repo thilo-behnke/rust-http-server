@@ -7,13 +7,13 @@ pub mod endpoint {
     use std::path::{Path, PathBuf};
     use std::sync::Arc;
 
-    pub struct EndpointHandler {
+    pub struct EndpointHandler<'a> {
         endpoints: Vec<Endpoint>,
-        resource_handler: HashMap<String, Arc<ResourceHandler>>,
+        resource_handler: HashMap<String, Arc<ResourceHandler<'a>>>,
     }
 
-    impl EndpointHandler {
-        pub fn create() -> EndpointHandler {
+    impl EndpointHandler<'_> {
+        pub fn create<'a>() -> EndpointHandler<'a> {
             return EndpointHandler {
                 endpoints: vec![],
                 resource_handler: HashMap::new(),
@@ -173,12 +173,12 @@ pub mod endpoint {
         }
     }
 
-    pub struct EndpointProvider {
+    pub struct EndpointProvider<'a> {
         endpoints: Vec<Endpoint>,
-        resource_handler: HashMap<String, Arc<ResourceHandler>>,
+        resource_handler: HashMap<String, Arc<ResourceHandler<'a>>>,
     }
 
-    impl EndpointProvider {
+    impl EndpointProvider<'_> {
         pub fn match_endpoint(&self, path: String, method: HttpMethod) -> Option<&Endpoint> {
             println!(
                 "Called to resolve endpoint for path {} with method {:?}",
