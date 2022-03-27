@@ -1,6 +1,6 @@
 pub mod resource {
     use std::collections::HashMap;
-    use crate::request_helper::request_helper::{RequestArgs, RequestArgValue};
+    use crate::request_helper::request_helper::{RequestArgValue};
     use crate::request_helper::request_helper::RequestArgs::{Path, Query};
     use crate::types::types::HttpRequest;
 
