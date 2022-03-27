@@ -1,7 +1,5 @@
 pub mod resource {
-    use crate::request_helper::request_helper::get_parameters_from_path;
     use crate::types::types::HttpRequest;
-    use std::sync::Arc;
 
     pub struct ResourceHandler {
         parameters: Vec<ResourceParameter>,

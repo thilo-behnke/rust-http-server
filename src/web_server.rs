@@ -136,7 +136,7 @@ pub mod web_server {
             match request {
                 Ok(req) => {
                     println!("Received http request: {:?}", req);
-                    let compress = match req.headers.iter().find(|(name, value)| **name == String::from("accept-encoding")) {
+                    let compress = match req.headers.iter().find(|(name, _)| **name == String::from("accept-encoding")) {
                         Some((_, val)) => val.split(",").map(|it| it.trim_start().trim_end()).collect::<Vec<&str>>().contains(&"gzip"),
                         None => false
                     };
@@ -203,7 +203,6 @@ pub mod web_server {
                         EndpointType::Resource(resource_endpoint) => {
                             return Ok(self.endpoint_handler.execute(resource_endpoint, request));
                         }
-                        _ => panic!("Unable to handle endpoint type: {:?}", e.endpoint_type),
                     }
                 }
                 None => {
