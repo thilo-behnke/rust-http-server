@@ -1,10 +1,8 @@
 pub mod response {
     use std::io::Write;
     use std::net::TcpStream;
-    use std::ops::Deref;
-    use std::ptr::write_bytes;
     use flate2::Compression;
-    use flate2::write::{GzEncoder, ZlibEncoder};
+    use flate2::write::{GzEncoder};
 
     pub struct ResponseHandler {
         content_encoding: Option<String>,
@@ -50,7 +48,7 @@ pub mod response {
             return self.write(res.as_str(), None, out_stream);
         }
 
-        pub fn write(&self, headers: &str, content: Option<String>, mut out_stream: &TcpStream) -> Result<(), String> {
+        pub fn write(&self, headers: &str, content: Option<String>, out_stream: &TcpStream) -> Result<(), String> {
             self.writer.write(headers, content, out_stream)
         }
     }

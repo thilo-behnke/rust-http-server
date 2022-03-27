@@ -1,10 +1,10 @@
 pub mod request_helper {
-    pub fn get_parameters_from_path(path: &str) -> Vec<RequestParameter> {
+    pub fn get_parameters_from_path(path: &str) -> Vec<RequestArgs> {
         let query_params = get_query_params(path);
         return query_params;
     }
 
-    fn get_query_params(path: &str) -> Vec<RequestParameter> {
+    fn get_query_params(path: &str) -> Vec<RequestArgs> {
         if !path.contains("?") {
             return vec![];
         }
@@ -23,8 +23,8 @@ pub mod request_helper {
                     .map(|it| {
                         let params_split: Vec<&str> = it.split("=").collect();
                         let (name, value) =
-                            (String::from(params_split[0]), String::from(params_split[1]));
-                        return RequestParameter::Query(RequestParameterValue { name, value });
+                            (params_split[0], params_split[1]);
+                        return RequestArgs::Query(RequestArgValue { name, value });
                     })
                     .collect()
             }
@@ -38,15 +38,15 @@ pub mod request_helper {
         }
     }
 
-    #[derive(Debug)]
-    pub enum RequestParameter {
-        Query(RequestParameterValue),
-        Path(RequestParameterValue),
+    #[derive(Debug, Copy, Clone)]
+    pub enum RequestArgs<'a> {
+        Query(RequestArgValue<'a>),
+        Path(RequestArgValue<'a>),
     }
 
-    #[derive(Debug)]
-    pub struct RequestParameterValue {
-        pub name: String,
-        pub value: String,
+    #[derive(Debug, Copy, Clone)]
+    pub struct RequestArgValue<'a> {
+        pub name: &'a str,
+        pub value: &'a str
     }
 }

@@ -1,5 +1,5 @@
 pub mod types {
-    use crate::request_helper::request_helper::RequestParameter;
+    use crate::request_helper::request_helper::RequestArgs;
     use std::collections::HashMap;
     use std::fmt;
     use std::fmt::Formatter;
@@ -7,7 +7,7 @@ pub mod types {
     #[derive(Debug)]
     pub struct GeneralRequest<'a> {
         pub method: HttpMethod,
-        pub params: Vec<RequestParameter>,
+        pub args: Vec<RequestArgs<'a>>,
         pub path: &'a str,
         pub version: HttpVersion,
     }

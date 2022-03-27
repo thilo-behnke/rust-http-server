@@ -62,7 +62,7 @@ pub mod parser {
                     Ok(m) => Ok(GeneralRequest {
                         method: m,
                         path: clean_path(path),
-                        params,
+                        args: params,
                         version: HttpVersion::One,
                     }),
                     Err(e) => Err(e),
@@ -72,7 +72,7 @@ pub mod parser {
             [method, path, version] => Ok(GeneralRequest {
                 method: match_method(method).expect("valid method"),
                 path: clean_path(path),
-                params: get_parameters_from_path(path),
+                args: get_parameters_from_path(path),
                 version: match_version(version).expect("valid version"),
             }),
             [] => Err("No general request information"),

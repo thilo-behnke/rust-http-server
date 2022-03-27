@@ -12,6 +12,7 @@ pub mod web_server {
     use std::io::Read;
     use std::net::{TcpListener, TcpStream};
     use std::path::Path;
+    use crate::request_helper::request_helper::{RequestArgs, RequestArgValue};
     use crate::response::response::ResponseHandler;
     use crate::template_engine::template_engine::TemplateEngine;
 
@@ -21,6 +22,7 @@ pub mod web_server {
         tcp_listener: TcpListener,
         thread_handler: ThreadHandler,
         endpoint_handler: EndpointHandler,
+        template_engine: TemplateEngine
     }
 
     impl WebServer {
@@ -31,10 +33,12 @@ pub mod web_server {
             println!("Tcp bind established, now listening.");
             let thread_handler = ThreadHandler::create();
             let endpoint_handler = EndpointHandler::create();
+            let template_engine = TemplateEngine {};
             return WebServer {
                 tcp_listener,
                 thread_handler,
                 endpoint_handler,
+                template_engine
             };
         }
 
@@ -43,17 +47,19 @@ pub mod web_server {
                 .register_static(String::from("files/dummy-website"), String::from("website"));
             self.endpoint_handler
                 .register_assets(String::from("files/storage/"), String::from("storage"));
+            let template_engine = self.template_engine.clone();
             self.endpoint_handler.register_resource(
                 String::from("math/sqr"),
                 String::from("sqr"),
                 Box::new(ResourceHandler::new(
-                    {|| {
-                        let template = "<div>${sqr}</div>\r\n";
-                        let template_engine = TemplateEngine {};
-                        let res = (4 * 4).to_string();
-                        let context: HashMap<String, String> = HashMap::from([("sqr".to_string(), res)]);
+                    Box::from({move |params: &HashMap<&str, &RequestArgValue>| {
+                        let template = "<div><span>${n} * ${n}</span> = <span>${sqr}</span></div>\r\n";
+                        // TODO: Error handling
+                        let n = params.get("n").unwrap().value.parse::<i8>().unwrap();
+                        let res = (n * n).to_string();
+                        let context: HashMap<String, String> = HashMap::from([("sqr".to_string(), res), ("n".to_string(), n.to_string())]);
                         template_engine.render(template, context)
-                    } },
+                    }}),
                     vec![ResourceParameter::p_i8(
                         String::from("n"),
                         ResourceParameterLocation::Query,
@@ -133,7 +139,7 @@ pub mod web_server {
             match request {
                 Ok(req) => {
                     println!("Received http request: {:?}", req);
-                    let compress = match req.headers.iter().find(|(name, value)| **name == String::from("accept-encoding")) {
+                    let compress = match req.headers.iter().find(|(name, _)| **name == String::from("accept-encoding")) {
                         Some((_, val)) => val.split(",").map(|it| it.trim_start().trim_end()).collect::<Vec<&str>>().contains(&"gzip"),
                         None => false
                     };
@@ -200,7 +206,6 @@ pub mod web_server {
                         EndpointType::Resource(resource_endpoint) => {
                             return Ok(self.endpoint_handler.execute(resource_endpoint, request));
                         }
-                        _ => panic!("Unable to handle endpoint type: {:?}", e.endpoint_type),
                     }
                 }
                 None => {

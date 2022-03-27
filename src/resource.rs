@@ -1,15 +1,16 @@
 pub mod resource {
-    use crate::request_helper::request_helper::get_parameters_from_path;
+    use std::collections::HashMap;
+    use crate::request_helper::request_helper::{RequestArgs, RequestArgValue};
+    use crate::request_helper::request_helper::RequestArgs::{Path, Query};
     use crate::types::types::HttpRequest;
-    use std::sync::Arc;
 
     pub struct ResourceHandler {
         parameters: Vec<ResourceParameter>,
-        handler: fn() -> String,
+        handler: Box<dyn Fn(&HashMap<&str, &RequestArgValue>) -> String + Sync + Send>,
     }
 
     impl ResourceHandler {
-        pub fn new(handler: fn() -> String, parameters: Vec<ResourceParameter>) -> ResourceHandler {
+        pub fn new(handler: Box<dyn Fn(&HashMap<&str, &RequestArgValue>) -> String + Sync + Send>, parameters: Vec<ResourceParameter>) -> ResourceHandler {
             ResourceHandler {
                 parameters,
                 handler,
@@ -17,8 +18,21 @@ pub mod resource {
         }
 
         pub fn handle(&self, request: &HttpRequest) -> String {
-            let path = request.general.path;
-            return (self.handler)();
+            let accepted_args = &request.general.args.iter().filter(|it| return match it {
+                Query(arg) => {
+                    let RequestArgValue { name, ..} = arg;
+                    self.parameters.iter().any(|p| &p.name == name && p.l_type == ResourceParameterLocation::Query)
+                },
+                Path(arg) => {
+                    let RequestArgValue { name, ..} = arg;
+                    self.parameters.iter().any(|p| &p.name == name && p.l_type == ResourceParameterLocation::Path)
+                },
+            }).map(|it| return match it {
+                Query(arg) => (arg.name, arg),
+                Path(arg) => (arg.name, arg),
+            }).collect();
+            println!("Accepted args: {:?} vs all requested: {:?}", accepted_args, &request.general.args);
+            return (self.handler)(&accepted_args);
         }
     }
 
@@ -28,6 +42,7 @@ pub mod resource {
         p_type: ResourceParameterType,
     }
 
+    #[derive(PartialEq)]
     pub enum ResourceParameterLocation {
         Path,
         Query,

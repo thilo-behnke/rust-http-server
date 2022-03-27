@@ -21,7 +21,7 @@ pub mod endpoint {
         }
 
         pub fn to_provider(&self) -> EndpointProvider {
-            let mut resource_handler_copy: HashMap<String, Arc<ResourceHandler>> = self
+            let resource_handler_copy: HashMap<String, Arc<ResourceHandler>> = self
                 .resource_handler
                 .iter()
                 .map(|(key, val)| (key.clone(), Arc::clone(val)))
