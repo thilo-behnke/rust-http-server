@@ -18,21 +18,21 @@ pub mod web_server {
 
     const MESSAGE_SIZE: usize = 1024;
 
-    pub struct WebServer<'a> {
+    pub struct WebServer {
         tcp_listener: TcpListener,
         thread_handler: ThreadHandler,
-        endpoint_handler: EndpointHandler<'a>,
+        endpoint_handler: EndpointHandler,
         template_engine: TemplateEngine
     }
 
-    impl WebServer<'_> {
-        pub fn create() -> WebServer<'static> {
+    impl WebServer {
+        pub fn create() -> WebServer {
             println!("Starting tcp bind to 8080.");
             let tcp_listener =
                 TcpListener::bind("127.0.0.1:8080").expect("Unable to bind to port.");
             println!("Tcp bind established, now listening.");
             let thread_handler = ThreadHandler::create();
-            let endpoint_handler = EndpointHandler::create::<'static>();
+            let endpoint_handler = EndpointHandler::create();
             let template_engine = TemplateEngine {};
             return WebServer {
                 tcp_listener,
@@ -59,7 +59,7 @@ pub mod web_server {
                 String::from("math/sqr"),
                 String::from("sqr"),
                 Box::new(
-                    ResourceHandler::new(&handler,
+                    ResourceHandler::new(handler,
                     vec![ResourceParameter::p_i8(
                         String::from("n"),
                         ResourceParameterLocation::Query,
@@ -97,11 +97,11 @@ pub mod web_server {
         }
     }
 
-    struct WebServerThreadHandler<'a> {
-        endpoint_handler: Box<EndpointProvider<'a>>,
+    struct WebServerThreadHandler {
+        endpoint_handler: Box<EndpointProvider>,
     }
 
-    impl WebServerThreadHandler<'_> {
+    impl WebServerThreadHandler {
         fn handle_client(&self, mut stream: TcpStream) -> std::io::Result<()> {
             let mut received: Vec<u8> = vec![];
             let mut buf = [0u8; MESSAGE_SIZE];
