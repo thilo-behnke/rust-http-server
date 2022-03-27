@@ -7,26 +7,26 @@ pub mod endpoint {
     use std::path::{Path, PathBuf};
     use std::sync::Arc;
 
-    pub struct EndpointHandler {
+    pub struct EndpointHandler<'a> {
         endpoints: Vec<Endpoint>,
-        resource_handler: HashMap<String, Arc<ResourceHandler>>,
+        resource_handler: HashMap<String, Arc<&'a Box<ResourceHandler<'a>>>>,
     }
 
-    impl EndpointHandler {
-        pub fn create() -> EndpointHandler {
+    impl EndpointHandler<'_> {
+        pub fn create() -> EndpointHandler<'static> {
             return EndpointHandler {
                 endpoints: vec![],
                 resource_handler: HashMap::new(),
             };
         }
 
-        pub fn to_provider(&self) -> EndpointProvider {
-            let resource_handler_copy: HashMap<String, Arc<ResourceHandler>> = self
+        pub fn to_provider(&self) -> &'static EndpointProvider {
+            let resource_handler_copy: HashMap<String, Arc<&Box<ResourceHandler>>> = self
                 .resource_handler
                 .iter()
                 .map(|(key, val)| (key.clone(), Arc::clone(val)))
                 .collect();
-            return EndpointProvider {
+            return &EndpointProvider {
                 endpoints: self.endpoints.to_vec(), // performance for many threads?
                 resource_handler: resource_handler_copy,
             };
@@ -114,7 +114,7 @@ pub mod endpoint {
             &mut self,
             mapping: String,
             handler_id: String,
-            handler: Box<ResourceHandler>,
+            handler: &'static Box<ResourceHandler>,
         ) {
             let mapping_corrected = match mapping.starts_with("/") {
                 true => mapping,
@@ -173,12 +173,12 @@ pub mod endpoint {
         }
     }
 
-    pub struct EndpointProvider {
+    pub struct EndpointProvider<'a> {
         endpoints: Vec<Endpoint>,
-        resource_handler: HashMap<String, Arc<ResourceHandler>>,
+        resource_handler: HashMap<String, Arc<&'a Box<ResourceHandler<'a>>>>,
     }
 
-    impl EndpointProvider {
+    impl EndpointProvider<'_> {
         pub fn match_endpoint(&self, path: String, method: HttpMethod) -> Option<&Endpoint> {
             println!(
                 "Called to resolve endpoint for path {} with method {:?}",

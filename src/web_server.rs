@@ -18,15 +18,15 @@ pub mod web_server {
 
     const MESSAGE_SIZE: usize = 1024;
 
-    pub struct WebServer {
+    pub struct WebServer<'a> {
         tcp_listener: TcpListener,
         thread_handler: ThreadHandler,
-        endpoint_handler: EndpointHandler,
+        endpoint_handler: EndpointHandler<'a>,
         template_engine: TemplateEngine
     }
 
-    impl WebServer {
-        pub fn create() -> WebServer {
+    impl WebServer<'static> {
+        pub fn create() -> WebServer<'static> {
             println!("Starting tcp bind to 8080.");
             let tcp_listener =
                 TcpListener::bind("127.0.0.1:8080").expect("Unable to bind to port.");
@@ -42,7 +42,7 @@ pub mod web_server {
             };
         }
 
-        pub fn run(&mut self) -> std::io::Result<()> {
+        pub fn run(&'static mut self) -> std::io::Result<()> {
             self.endpoint_handler
                 .register_static(String::from("files/dummy-website"), String::from("website"));
             self.endpoint_handler
@@ -58,8 +58,8 @@ pub mod web_server {
             self.endpoint_handler.register_resource(
                 String::from("math/sqr"),
                 String::from("sqr"),
-                Box::new(
-                    ResourceHandler::new(handler,
+                &Box::new(
+                    ResourceHandler::new(&handler,
                     vec![ResourceParameter::p_i8(
                         String::from("n"),
                         ResourceParameterLocation::Query,
@@ -97,11 +97,11 @@ pub mod web_server {
         }
     }
 
-    struct WebServerThreadHandler {
-        endpoint_handler: Box<EndpointProvider>,
+    struct WebServerThreadHandler<'a> {
+        endpoint_handler: Box<&'a EndpointProvider<'a>>,
     }
 
-    impl WebServerThreadHandler {
+    impl WebServerThreadHandler<'_> {
         fn handle_client(&self, mut stream: TcpStream) -> std::io::Result<()> {
             let mut received: Vec<u8> = vec![];
             let mut buf = [0u8; MESSAGE_SIZE];
