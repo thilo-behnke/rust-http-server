@@ -21,6 +21,7 @@ pub mod web_server {
         tcp_listener: TcpListener,
         thread_handler: ThreadHandler,
         endpoint_handler: EndpointHandler,
+        template_engine: TemplateEngine
     }
 
     impl WebServer {
@@ -31,10 +32,12 @@ pub mod web_server {
             println!("Tcp bind established, now listening.");
             let thread_handler = ThreadHandler::create();
             let endpoint_handler = EndpointHandler::create();
+            let template_engine = TemplateEngine {};
             return WebServer {
                 tcp_listener,
                 thread_handler,
                 endpoint_handler,
+                template_engine
             };
         }
 
@@ -47,13 +50,12 @@ pub mod web_server {
                 String::from("math/sqr"),
                 String::from("sqr"),
                 Box::new(ResourceHandler::new(
-                    {|| {
+                    Box::from({|| {
                         let template = "<div>${sqr}</div>\r\n";
-                        let template_engine = TemplateEngine {};
                         let res = (4 * 4).to_string();
                         let context: HashMap<String, String> = HashMap::from([("sqr".to_string(), res)]);
-                        template_engine.render(template, context)
-                    } },
+                        self.template_engine.render(template, context)
+                    }}),
                     vec![ResourceParameter::p_i8(
                         String::from("n"),
                         ResourceParameterLocation::Query,

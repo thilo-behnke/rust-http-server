@@ -5,11 +5,11 @@ pub mod resource {
 
     pub struct ResourceHandler {
         parameters: Vec<ResourceParameter>,
-        handler: fn() -> String,
+        handler: Box<dyn Fn() -> String + Sync + Send>,
     }
 
     impl ResourceHandler {
-        pub fn new(handler: fn() -> String, parameters: Vec<ResourceParameter>) -> ResourceHandler {
+        pub fn new(handler: Box<dyn Fn() -> String + Sync + Send>, parameters: Vec<ResourceParameter>) -> ResourceHandler {
             ResourceHandler {
                 parameters,
                 handler,
